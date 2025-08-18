@@ -365,7 +365,7 @@ export async function updateDefaultProject(cfg: TauriProjectConfig): Promise<Tau
 
 // Pages APIs (Phase 1: top-level only)
 export interface PageInfo { slug: string; path: string }
-export interface PageNode { slug: string; path: string; children: PageNode[] }
+export interface PageNode { slug: string; path: string; title?: string; status?: string; route?: string; notes?: string; children: PageNode[] }
 
 export async function getModulePages(moduleName: string): Promise<PageInfo[]> {
   try {
@@ -451,6 +451,15 @@ export async function deleteSubpage(moduleName: string, parentSlug: string, slug
 export async function renameSubpage(moduleName: string, parentSlug: string, fromSlug: string, toSlug: string): Promise<PageInfo> {
   try {
     return await invoke<PageInfo>('rename_subpage', { moduleName, parentSlug, fromSlug, toSlug })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+export async function applyCrudSubpages(moduleName: string, parentSlug: string): Promise<string[]> {
+  try {
+    return await invoke<string[]>('apply_crud_subpages', { moduleName, parentSlug })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))

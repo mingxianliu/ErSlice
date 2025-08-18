@@ -61,6 +61,10 @@ pub struct PageInfo {
 pub struct PageNode {
     pub slug: String,
     pub path: String,
+    pub title: Option<String>,
+    pub status: Option<String>,
+    pub route: Option<String>,
+    pub notes: Option<String>,
     pub children: Vec<PageNode>,
 }
 
@@ -81,6 +85,25 @@ fn load_order(module_dir: &std::path::Path) -> OrderFile {
         }
     }
     OrderFile::default()
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PageMeta {
+    slug: Option<String>,
+    title: Option<String>,
+    path: Option<String>,
+    status: Option<String>,
+    route: Option<String>,
+    notes: Option<String>,
+}
+
+fn read_page_meta(path: &std::path::Path) -> PageMeta {
+    use std::fs;
+    let p = path.join("page.json");
+    if let Ok(txt) = fs::read_to_string(&p) {
+        if let Ok(v) = serde_json::from_str::<PageMeta>(&txt) { return v; }
+    }
+    PageMeta { slug: None, title: None, path: None, status: None, route: None, notes: None }
 }
 
 fn save_order(module_dir: &std::path::Path, mut of: OrderFile) -> Result<(), Box<dyn std::error::Error>> {
@@ -983,7 +1006,11 @@ pub async fn create_module_page(module_name: String, slug: String) -> Result<Pag
     std::fs::create_dir_all(page_dir.join("css")).map_err(|e| format!("建立資料夾失敗: {}", e))?;
     let meta = serde_json::json!({
         "slug": slug,
+        "title": slug,
+        "path": format!("/{}/{}", module_name, slug),
         "status": "draft",
+        "route": format!("/{}/{}", module_name, slug),
+        "notes": "",
         "createdAt": chrono::Utc::now().to_rfc3339(),
     });
     std::fs::write(page_dir.join("page.json"), serde_json::to_string_pretty(&meta).unwrap())
@@ -1033,12 +1060,30 @@ pub async fn get_module_tree(module_name: String) -> Result<Vec<PageNode>, Strin
                             let sp = se.path();
                             if sp.is_dir() {
                                 if let Some(ss) = sp.file_name().and_then(|s| s.to_str()) {
-                                    children.push(PageNode { slug: ss.to_string(), path: format!("/{}/{}/{}", module_name, slug, ss), children: vec![] });
+                                    let m = read_page_meta(&sp);
+                                    children.push(PageNode {
+                                        slug: ss.to_string(),
+                                        path: m.path.clone().unwrap_or_else(|| format!("/{}/{}/{}", module_name, slug, ss)),
+                                        title: m.title.clone(),
+                                        status: m.status.clone(),
+                                        route: m.route.clone(),
+                                        notes: m.notes.clone(),
+                                        children: vec![],
+                                    });
                                 }
                             }
                         }
                     }
-                    map_pages.insert(slug.to_string(), PageNode { slug: slug.to_string(), path: format!("/{}/{}", module_name, slug), children });
+                    let m = read_page_meta(&p);
+                    map_pages.insert(slug.to_string(), PageNode {
+                        slug: slug.to_string(),
+                        path: m.path.clone().unwrap_or_else(|| format!("/{}/{}", module_name, slug)),
+                        title: m.title.clone(),
+                        status: m.status.clone(),
+                        route: m.route.clone(),
+                        notes: m.notes.clone(),
+                        children,
+                    });
                 }
             }
         }
@@ -1080,7 +1125,11 @@ pub async fn create_subpage(module_name: String, parent_slug: String, slug: Stri
     std::fs::create_dir_all(base.join("css")).map_err(|e| format!("建立資料夾失敗: {}", e))?;
     let meta = serde_json::json!({
         "slug": slug,
+        "title": slug,
+        "path": format!("/{}/{}/{}", module_name, parent_slug, slug),
         "status": "draft",
+        "route": format!("/{}/{}/{}", module_name, parent_slug, slug),
+        "notes": "",
         "createdAt": chrono::Utc::now().to_rfc3339(),
     });
     std::fs::write(base.join("page.json"), serde_json::to_string_pretty(&meta).unwrap())
@@ -1229,7 +1278,14 @@ pub async fn generate_project_mermaid() -> Result<MermaidResult, String> {
             total_pages += 1;
             let mid = sanitize_id(m);
             let pid = format!("{}_{}", mid, sanitize_id(pslug));
-            buf.push_str(&format!("  {} --> {}[\"/{}/{}\"]\n", mid, pid, m, pslug));
+            let pmeta = read_page_meta(&module_dir.join(pslug));
+            let p_label = if pmeta.status.is_some() || pmeta.route.is_some() {
+                format!("/{}/{}{}{}",
+                    m, pslug,
+                    pmeta.status.as_ref().map(|s| format!(" ({})", s)).unwrap_or_default(),
+                    pmeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default())
+            } else { format!("/{}/{}", m, pslug) };
+            buf.push_str(&format!("  {} --> {}[\"{}\"]\n", mid, pid, p_label));
             // Subpages
             let mut sub_slugs: Vec<String> = Vec::new();
             let sp_dir = module_dir.join(pslug).join("subpages");
@@ -1251,7 +1307,14 @@ pub async fn generate_project_mermaid() -> Result<MermaidResult, String> {
             for sslug in sub_slugs.iter() {
                 total_subpages += 1;
                 let sid = format!("{}_{}", pid, sanitize_id(sslug));
-                buf.push_str(&format!("  {} --> {}[\"/{}/{}/{}\"]\n", pid, sid, m, pslug, sslug));
+                let smeta = read_page_meta(&sp_dir.join(sslug));
+                let s_label = if smeta.status.is_some() || smeta.route.is_some() {
+                    format!("/{}/{}/{}{}{}",
+                        m, pslug, sslug,
+                        smeta.status.as_ref().map(|s| format!(" ({})", s)).unwrap_or_default(),
+                        smeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default())
+                } else { format!("/{}/{}/{}", m, pslug, sslug) };
+                buf.push_str(&format!("  {} --> {}[\"{}\"]\n", pid, sid, s_label));
             }
         }
     }
@@ -1280,6 +1343,34 @@ pub async fn generate_project_mermaid() -> Result<MermaidResult, String> {
         pages: total_pages,
         subpages: total_subpages,
     })
+}
+
+// 套用 CRUD 子頁：建立 list, create, detail, edit（若不存在）
+#[tauri::command]
+pub async fn apply_crud_subpages(module_name: String, parent_slug: String) -> Result<Vec<String>, String> {
+    use std::fs;
+    let labels = vec!["list", "create", "detail", "edit"];
+    let mut created: Vec<String> = Vec::new();
+    for slug in labels.iter() {
+        let base = PathBuf::from("design-assets").join(&module_name).join("pages").join(&parent_slug).join("subpages").join(slug);
+        if base.exists() { continue; }
+        fs::create_dir_all(base.join("screenshots")).map_err(|e| format!("建立資料夾失敗: {}", e))?;
+        fs::create_dir_all(base.join("html")).map_err(|e| format!("建立資料夾失敗: {}", e))?;
+        fs::create_dir_all(base.join("css")).map_err(|e| format!("建立資料夾失敗: {}", e))?;
+        let meta = serde_json::json!({
+            "slug": slug,
+            "title": format!("{} {}", parent_slug, slug),
+            "path": format!("/{}/{}/{}", module_name, parent_slug, slug),
+            "status": "draft",
+            "route": format!("/{}/{}/{}", module_name, parent_slug, slug),
+            "notes": "CRUD 預設",
+            "createdAt": chrono::Utc::now().to_rfc3339(),
+        });
+        std::fs::write(base.join("page.json"), serde_json::to_string_pretty(&meta).unwrap())
+            .map_err(|e| format!("寫入 page.json 失敗: {}", e))?;
+        created.push(slug.to_string());
+    }
+    Ok(created)
 }
 
 // 生成 Mermaid HTML 預覽（ai-docs/project-sitemap.html），使用 CDN mermaid 腳本

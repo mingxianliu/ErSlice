@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeftIcon, DocumentArrowDownIcon, ArrowPathIcon, CloudArrowUpIcon, EyeIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useDesignModulesStore } from '../stores/designModules'
-import { generateSlicePackage, uploadDesignAsset, listAssets, deleteDesignAsset, getModuleTree, createModulePage, deleteModulePage, renameModulePage, createSubpage, deleteSubpage, renameSubpage, setPageOrder, setSubpageOrder, type PageNode } from '../utils/tauriCommands'
+import { generateSlicePackage, uploadDesignAsset, listAssets, deleteDesignAsset, getModuleTree, createModulePage, deleteModulePage, renameModulePage, createSubpage, deleteSubpage, renameSubpage, setPageOrder, setSubpageOrder, applyCrudSubpages, type PageNode } from '../utils/tauriCommands'
 import { useToast } from '../components/ui/Toast'
 import { convertFileSrc } from '@tauri-apps/api/core'
 
@@ -196,14 +196,21 @@ const DesignModuleDetail: React.FC = () => {
                 }}
               >
                 <div className="flex items-center justify-between px-3 py-2">
-              <div className="text-sm text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                <button
-                  className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700"
-                  onClick={() => setExpanded((prev) => ({ ...prev, [p.slug]: !prev[p.slug] }))}
-                >{expanded[p.slug] ? '−' : '+'}</button>
-                {p.slug} <span className="text-gray-500">({p.path})</span>
-              </div>
-              <div className="flex items-center gap-2">
+                  <div className="text-sm text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <button
+                      className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700"
+                      onClick={() => setExpanded((prev) => ({ ...prev, [p.slug]: !prev[p.slug] }))}
+                    >{expanded[p.slug] ? '−' : '+'}</button>
+                    <span className="font-medium">{p.slug}</span>
+                    <span className="text-gray-500">({p.path})</span>
+                    {p.status && (
+                      <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[10px] text-gray-700 dark:text-gray-300">{p.status}</span>
+                    )}
+                    {p.route && (
+                      <span className="ml-1 text-xs text-gray-500">route: {p.route}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
                 {renaming?.slug === p.slug ? (
                   <>
                     <input
@@ -268,6 +275,16 @@ const DesignModuleDetail: React.FC = () => {
                       showError('新增子頁失敗', m)
                     }
                   }}>新增子頁</button>
+                  <button className="btn-secondary text-sm" onClick={async () => {
+                    try {
+                      const created = await applyCrudSubpages(moduleName, p.slug)
+                      await refreshPages()
+                      showSuccess(`已套用 CRUD（新增 ${created.length} 個子頁）`)
+                    } catch (e) {
+                      const m = e instanceof Error ? e.message : String(e)
+                      showError('套用 CRUD 失敗', m)
+                    }
+                  }}>套用 CRUD 子頁</button>
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">可用逗號分隔批次新增，例如：list,edit,review</div>
                     <div className="space-y-1">
