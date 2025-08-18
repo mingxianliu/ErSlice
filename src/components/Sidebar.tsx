@@ -14,6 +14,7 @@ interface NavItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
   description: string
+  enabled?: boolean
 }
 
 // 導航項目列表
@@ -22,31 +23,36 @@ const navigation: NavItem[] = [
     name: '儀表板',
     href: '/',
     icon: HomeIcon,
-    description: '專案概覽和統計'
+    description: '專案概覽和統計',
+    enabled: false,
   },
   {
     name: '設計資產',
     href: '/design-assets',
     icon: FolderIcon,
-    description: '管理設計稿和資源'
+    description: '管理設計稿和資源',
+    enabled: true,
   },
   {
     name: '模板生成器',
     href: '/template-generator',
     icon: DocumentTextIcon,
-    description: '生成 HTML/CSS 模板'
+    description: '生成 HTML/CSS 模板',
+    enabled: false,
   },
   {
     name: 'AI 規格生成',
     href: '/ai-spec-generator',
     icon: SparklesIcon,
-    description: '生成 AI 切版說明'
+    description: '生成 AI 切版說明',
+    enabled: false,
   },
   {
     name: '設定',
     href: '/settings',
     icon: Cog6ToothIcon,
-    description: '系統設定和偏好'
+    description: '系統設定和偏好',
+    enabled: false,
   }
 ]
 
@@ -71,24 +77,40 @@ const Sidebar: React.FC = () => {
         <ul className="space-y-2">
           {navigation.map((item) => (
             <li key={item.name}>
-              <NavLink
-                to={item.href}
-                className={({ isActive }) =>
-                  `group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-                  }`
-                }
-              >
-                <item.icon className="mr-3 h-5 w-5" />
-                <div>
-                  <div className="font-medium">{item.name}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {item.description}
+              {item.enabled ? (
+                <NavLink
+                  to={item.href}
+                  className={({ isActive }) =>
+                    `group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`
+                  }
+                >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  <div>
+                    <div className="font-medium">{item.name}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {item.description}
+                    </div>
+                  </div>
+                </NavLink>
+              ) : (
+                <div
+                  className="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-400 dark:text-gray-500 cursor-not-allowed select-none"
+                  title="即將推出"
+                  aria-disabled
+                >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  <div>
+                    <div className="font-medium">{item.name}</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                      {item.description}
+                    </div>
                   </div>
                 </div>
-              </NavLink>
+              )}
             </li>
           ))}
         </ul>
