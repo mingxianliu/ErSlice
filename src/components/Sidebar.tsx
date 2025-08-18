@@ -34,6 +34,13 @@ const navigation: NavItem[] = [
     enabled: true,
   },
   {
+    name: '專案管理',
+    href: '/projects',
+    icon: Cog6ToothIcon,
+    description: '建立與切換專案',
+    enabled: true,
+  },
+  {
     name: '模板生成器',
     href: '/template-generator',
     icon: DocumentTextIcon,

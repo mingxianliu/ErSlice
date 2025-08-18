@@ -465,3 +465,63 @@ export async function applyCrudSubpages(moduleName: string, parentSlug: string):
     throw new Error(getUserFriendlyMessage(ersliceError))
   }
 }
+
+// Project list/switch APIs
+export interface ProjectListItem { slug: string; name: string }
+
+export async function listProjects(): Promise<ProjectListItem[]> {
+  try {
+    return await invoke<ProjectListItem[]>('list_projects')
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+export async function createProject(slug: string, name: string): Promise<TauriProjectConfig> {
+  try {
+    return await invoke<TauriProjectConfig>('create_project', { slug, name })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+export async function deleteProject(slug: string): Promise<string> {
+  try {
+    return await invoke<string>('delete_project', { slug })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+export async function switchProject(slug: string): Promise<TauriProjectConfig> {
+  try {
+    return await invoke<TauriProjectConfig>('switch_project', { slug })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+// Page meta updates
+export interface PageMetaUpdate { title?: string; status?: string; route?: string; notes?: string; path?: string }
+
+export async function updatePageMeta(moduleName: string, slug: string, meta: PageMetaUpdate): Promise<string> {
+  try {
+    return await invoke<string>('update_page_meta', { moduleName, slug, meta })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+export async function updateSubpageMeta(moduleName: string, parentSlug: string, slug: string, meta: PageMetaUpdate): Promise<string> {
+  try {
+    return await invoke<string>('update_subpage_meta', { moduleName, parentSlug, slug, meta })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}

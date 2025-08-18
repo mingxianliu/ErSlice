@@ -51,6 +51,26 @@ pub struct ProjectConfig {
     pub overwrite_strategy_default: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct ActiveProject { slug: String }
+
+fn projects_root() -> PathBuf { PathBuf::from("projects") }
+
+fn read_active_slug() -> Option<String> {
+    let active = projects_root().join("active.json");
+    if let Ok(text) = std::fs::read_to_string(&active) {
+        if let Ok(v) = serde_json::from_str::<ActiveProject>(&text) { return Some(v.slug); }
+    }
+    None
+}
+
+fn write_active_slug(slug: &str) -> Result<(), String> {
+    let active = projects_root().join("active.json");
+    let v = ActiveProject { slug: slug.to_string() };
+    std::fs::create_dir_all(projects_root()).map_err(|e| e.to_string())?;
+    std::fs::write(active, serde_json::to_string_pretty(&v).unwrap()).map_err(|e| e.to_string())
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PageInfo {
     pub slug: String,
@@ -931,7 +951,17 @@ fn generate_ai_spec_with_strategy(module_name: &str, output_dir: &PathBuf, strat
 #[tauri::command]
 pub async fn get_or_init_default_project() -> Result<ProjectConfig, String> {
     use std::fs;
-    let projects_root = PathBuf::from("projects").join("default");
+    // 若已設定 active 專案，直接回傳其設定
+    if let Some(slug) = read_active_slug() {
+        let pdir = projects_root().join(&slug);
+        let cfg_path = pdir.join("project.json");
+        if cfg_path.exists() {
+            let raw = std::fs::read_to_string(&cfg_path).map_err(|e| format!("讀取 project.json 失敗: {}", e))?;
+            let cfg: ProjectConfig = serde_json::from_str(&raw).map_err(|e| format!("解析 project.json 失敗: {}", e))?;
+            return Ok(cfg);
+        }
+    }
+    let projects_root = projects_root().join("default");
     if let Err(e) = fs::create_dir_all(&projects_root) {
         return Err(format!("建立 projects/default 失敗: {}", e));
     }
@@ -961,7 +991,9 @@ pub async fn get_or_init_default_project() -> Result<ProjectConfig, String> {
 #[tauri::command]
 pub async fn update_default_project(config: ProjectConfig) -> Result<ProjectConfig, String> {
     use std::fs;
-    let projects_root = PathBuf::from("projects").join("default");
+    // 更新目前 active 專案（若存在），否則更新 default
+    let slug = read_active_slug().unwrap_or_else(|| "default".to_string());
+    let projects_root = projects_root().join(&slug);
     if let Err(e) = fs::create_dir_all(&projects_root) {
         return Err(format!("建立 projects/default 失敗: {}", e));
     }
@@ -969,6 +1001,79 @@ pub async fn update_default_project(config: ProjectConfig) -> Result<ProjectConf
     std::fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap())
         .map_err(|e| format!("寫入 project.json 失敗: {}", e))?;
     Ok(config)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProjectListItem { pub slug: String, pub name: String }
+
+#[tauri::command]
+pub async fn list_projects() -> Result<Vec<ProjectListItem>, String> {
+    use std::fs;
+    let mut out: Vec<ProjectListItem> = Vec::new();
+    let root = projects_root();
+    if let Ok(entries) = fs::read_dir(&root) {
+        for e in entries.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                if let Some(slug) = p.file_name().and_then(|s| s.to_str()) {
+                    let cfgp = p.join("project.json");
+                    if cfgp.exists() {
+                        if let Ok(raw) = std::fs::read_to_string(&cfgp) {
+                            if let Ok(cfg) = serde_json::from_str::<ProjectConfig>(&raw) {
+                                out.push(ProjectListItem { slug: slug.to_string(), name: cfg.name });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // 確保 default 存在
+    if out.iter().all(|i| i.slug != "default") {
+        let _ = get_or_init_default_project().await; // ignore result
+        out.push(ProjectListItem { slug: "default".to_string(), name: "Default Project".to_string() });
+    }
+    out.sort_by(|a,b| a.slug.cmp(&b.slug));
+    Ok(out)
+}
+
+#[tauri::command]
+pub async fn create_project(slug: String, name: String) -> Result<ProjectConfig, String> {
+    if slug.trim().is_empty() { return Err("slug 不可為空".into()); }
+    let dir = projects_root().join(&slug);
+    if dir.exists() { return Err("slug 已存在".into()); }
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let cfg = ProjectConfig {
+        name, slug: slug.clone(), design_assets_root: None, ai_doc_frontend_instructions: None, ai_doc_ui_friendly: None,
+        zip_default: true, include_bone_default: false, include_specs_default: false, overwrite_strategy_default: Some("overwrite".into())
+    };
+    std::fs::write(dir.join("project.json"), serde_json::to_string_pretty(&cfg).unwrap()).map_err(|e| e.to_string())?;
+    Ok(cfg)
+}
+
+#[tauri::command]
+pub async fn delete_project(slug: String) -> Result<String, String> {
+    let dir = projects_root().join(&slug);
+    if !dir.exists() { return Err("專案不存在".into()); }
+    std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())?;
+    // 若刪除的是 active，重設為 default
+    if read_active_slug().as_deref() == Some(&slug) {
+        let _ = write_active_slug("default");
+    }
+    Ok("已刪除專案".into())
+}
+
+#[tauri::command]
+pub async fn switch_project(slug: String) -> Result<ProjectConfig, String> {
+    // 驗證存在
+    let dir = projects_root().join(&slug);
+    let cfgp = dir.join("project.json");
+    if !cfgp.exists() { return Err("專案不存在".into()); }
+    write_active_slug(&slug)?;
+    // 回傳新 active 設定
+    let raw = std::fs::read_to_string(&cfgp).map_err(|e| e.to_string())?;
+    let cfg: ProjectConfig = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    Ok(cfg)
 }
 
 // ====== Pages under module (top-level only, Phase 1) ======
@@ -1337,12 +1442,50 @@ pub async fn generate_project_mermaid() -> Result<MermaidResult, String> {
         }
     }
 
-    Ok(MermaidResult {
+  Ok(MermaidResult {
         mmd_path: mmd_path.to_string_lossy().to_string(),
         modules: modules.len(),
         pages: total_pages,
         subpages: total_subpages,
     })
+}
+
+// 更新頁面/子頁 meta
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PageMetaUpdate { pub title: Option<String>, pub status: Option<String>, pub route: Option<String>, pub notes: Option<String>, pub path: Option<String> }
+
+#[tauri::command]
+pub async fn update_page_meta(module_name: String, slug: String, meta: PageMetaUpdate) -> Result<String, String> {
+    use std::fs;
+    let page_dir = PathBuf::from("design-assets").join(&module_name).join("pages").join(&slug);
+    if !page_dir.exists() { return Err("頁面不存在".into()); }
+    let p = page_dir.join("page.json");
+    let mut cur = read_page_meta(&page_dir);
+    if let Some(v) = meta.title { cur.title = Some(v); }
+    if let Some(v) = meta.status { cur.status = Some(v); }
+    if let Some(v) = meta.route { cur.route = Some(v); }
+    if let Some(v) = meta.notes { cur.notes = Some(v); }
+    if let Some(v) = meta.path { cur.path = Some(v); }
+    let s = serde_json::to_string_pretty(&cur).map_err(|e| e.to_string())?;
+    fs::write(p, s).map_err(|e| e.to_string())?;
+    Ok("已更新頁面 meta".into())
+}
+
+#[tauri::command]
+pub async fn update_subpage_meta(module_name: String, parent_slug: String, slug: String, meta: PageMetaUpdate) -> Result<String, String> {
+    use std::fs;
+    let base = PathBuf::from("design-assets").join(&module_name).join("pages").join(&parent_slug).join("subpages").join(&slug);
+    if !base.exists() { return Err("子頁不存在".into()); }
+    let p = base.join("page.json");
+    let mut cur = read_page_meta(&base);
+    if let Some(v) = meta.title { cur.title = Some(v); }
+    if let Some(v) = meta.status { cur.status = Some(v); }
+    if let Some(v) = meta.route { cur.route = Some(v); }
+    if let Some(v) = meta.notes { cur.notes = Some(v); }
+    if let Some(v) = meta.path { cur.path = Some(v); }
+    let s = serde_json::to_string_pretty(&cur).map_err(|e| e.to_string())?;
+    fs::write(p, s).map_err(|e| e.to_string())?;
+    Ok("已更新子頁 meta".into())
 }
 
 // 套用 CRUD 子頁：建立 list, create, detail, edit（若不存在）
@@ -1394,19 +1537,74 @@ pub async fn generate_project_mermaid_html() -> Result<String, String> {
   <script type=\"module\">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
     mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    // 點擊事件：支援 file:// 連結（由 data-href 提供）
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        document.querySelectorAll('svg g.node').forEach((n) => {
+          const title = n.querySelector('title');
+          const id = title ? title.textContent : null;
+          if (id && window.__ERSLICE_LINKS && window.__ERSLICE_LINKS[id]) {
+            n.style.cursor = 'pointer';
+            n.addEventListener('click', () => {
+              const href = window.__ERSLICE_LINKS[id];
+              if (href) window.location.href = href;
+            });
+          }
+        });
+      }, 300);
+    });
   </script>
-  <script>window.__ERSLICE_TS = Date.now()</script>
+  <script>window.__ERSLICE_TS = Date.now(); window.__ERSLICE_LINKS = {};</script>
   </head>
 <body>
   <h1>Project Sitemap (Mermaid)</h1>
   <div class=\"mermaid\">
 {graph}
   </div>
+  <script>window.__ERSLICE_LINKS = {links};</script>
 </body>
 </html>
 "#, graph = content);
 
     let html_path = mmd_path.parent().unwrap_or_else(|| std::path::Path::new(".")).join("project-sitemap.html");
+    // 建立節點點擊對應的 file:// 連結（以資料夾為主）
+    let mut links: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    // 從 mmd 內容推導 id 與對應路徑：依生成規則 mid, pid, sid
+    // 這裡簡化：同時生成 links 於此函數，以 module/page/subpage 對應資料夾
+    let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+    let root = cwd.join("design-assets");
+    // 掃描 modules/pages/subpages 生成與 generate_project_mermaid 一致的 id
+    if let Ok(entries) = std::fs::read_dir(&root) {
+        for e in entries.flatten() {
+            let mpath = e.path();
+            if !mpath.is_dir() { continue; }
+            let mname = mpath.file_name().and_then(|s| s.to_str()).unwrap_or("");
+            let mid = sanitize_id(mname);
+            links.insert(mid.clone(), format!("file://{}", mpath.to_string_lossy().replace(' ', "%20")));
+            let pages = mpath.join("pages");
+            if let Ok(pentries) = std::fs::read_dir(&pages) {
+                for pe in pentries.flatten() {
+                    let ppath = pe.path();
+                    if !ppath.is_dir() { continue; }
+                    let pslug = ppath.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
+                    let pid = format!("{}_{}", mid, sanitize_id(&pslug));
+                    links.insert(pid.clone(), format!("file://{}", ppath.to_string_lossy().replace(' ', "%20")));
+                    let sp = ppath.join("subpages");
+                    if let Ok(sentries) = std::fs::read_dir(&sp) {
+                        for se in sentries.flatten() {
+                            let spath = se.path();
+                            if !spath.is_dir() { continue; }
+                            let sslug = spath.file_name().and_then(|s| s.to_str()).unwrap_or("");
+                            let sid = format!("{}_{}", pid, sanitize_id(sslug));
+                            links.insert(sid, format!("file://{}", spath.to_string_lossy().replace(' ', "%20")));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let links_json = serde_json::to_string(&links).map_err(|e| e.to_string())?;
+    let html = html.replace("{links}", &links_json);
     fs::write(&html_path, html).map_err(|e| format!("寫入 HTML 檔案失敗: {}", e))?;
     Ok(html_path.to_string_lossy().to_string())
 }

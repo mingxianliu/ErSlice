@@ -8,6 +8,7 @@ import TemplateGenerator from './pages/TemplateGenerator'
 import AISpecGenerator from './pages/AISpecGenerator'
 import DesignModuleDetail from './pages/DesignModuleDetail'
 import Settings from './pages/Settings'
+import Projects from './pages/Projects'
 
 // ErSlice 主應用組件 - 前端切版說明包生成器
 function App() {
@@ -22,6 +23,7 @@ function App() {
             <Route path="/" element={<Navigate to="/design-assets" replace />} />
             <Route path="/design-assets" element={<DesignAssets />} />
             <Route path="/design-assets/:name" element={<DesignModuleDetail />} />
+            <Route path="/projects" element={<Projects />} />
             <Route path="/template-generator" element={<TemplateGenerator />} />
             <Route path="/ai-spec-generator" element={<AISpecGenerator />} />
             <Route path="/settings" element={<Settings />} />

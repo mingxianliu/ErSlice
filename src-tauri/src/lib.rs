@@ -36,6 +36,12 @@ pub fn run() {
       commands::generate_project_mermaid,
       commands::generate_project_mermaid_html,
       commands::apply_crud_subpages,
+      commands::list_projects,
+      commands::create_project,
+      commands::delete_project,
+      commands::switch_project,
+      commands::update_page_meta,
+      commands::update_subpage_meta,
     ])
     .setup(|app| {
       // 設置 ErSlice 應用程式

@@ -211,7 +211,7 @@ const DesignModuleDetail: React.FC = () => {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                {renaming?.slug === p.slug ? (
+                    {renaming?.slug === p.slug ? (
                   <>
                     <input
                       value={renaming.to}
@@ -231,24 +231,39 @@ const DesignModuleDetail: React.FC = () => {
                       }
                     }}>確定</button>
                     <button className="btn-secondary text-sm" onClick={() => setRenaming(null)}>取消</button>
-                  </>
-                ) : (
-                  <>
-                    <button className="btn-secondary text-sm" onClick={() => setRenaming({ slug: p.slug, to: p.slug })}>重新命名</button>
-                    <button className="btn-secondary text-sm" onClick={async () => {
-                      if (!confirm(`刪除頁面 ${p.slug}？`)) return
-                      try {
-                        await deleteModulePage(moduleName, p.slug)
-                        await refreshPages()
-                        showSuccess('已刪除')
-                      } catch (e) {
-                        const m = e instanceof Error ? e.message : String(e)
-                        showError('刪除失敗', m)
-                      }
-                    }}>刪除</button>
-                  </>
-                )}
-              </div>
+                    </>
+                  ) : (
+                    <>
+                      <button className="btn-secondary text-sm" onClick={() => setRenaming({ slug: p.slug, to: p.slug })}>重新命名</button>
+                      <button className="btn-secondary text-sm" onClick={async () => {
+                        if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
+                        const status = prompt('狀態（如 draft/ready）：', p.status || '') || undefined
+                        const route = prompt('路由（如 /module/page）：', p.route || '') || undefined
+                        const notes = prompt('備註：', p.notes || '') || undefined
+                        try {
+                          const { updatePageMeta } = await import('../utils/tauriCommands')
+                          await updatePageMeta(moduleName, p.slug, { status, route, notes })
+                          await refreshPages()
+                          showSuccess('已更新頁面 Meta')
+                        } catch (e) {
+                          const m = e instanceof Error ? e.message : String(e)
+                          showError('更新頁面 Meta 失敗', m)
+                        }
+                      }}>編輯</button>
+                      <button className="btn-secondary text-sm" onClick={async () => {
+                        if (!confirm(`刪除頁面 ${p.slug}？`)) return
+                        try {
+                          await deleteModulePage(moduleName, p.slug)
+                          await refreshPages()
+                          showSuccess('已刪除')
+                        } catch (e) {
+                          const m = e instanceof Error ? e.message : String(e)
+                          showError('刪除失敗', m)
+                        }
+                      }}>刪除</button>
+                    </>
+                  )}
+                </div>
             </div>
             {expanded[p.slug] && (
               <div className="px-4 pb-3">
@@ -345,6 +360,21 @@ const DesignModuleDetail: React.FC = () => {
                           ) : (
                             <>
                               <button className="btn-secondary text-sm" onClick={() => setRenaming({ slug: `${p.slug}/${c.slug}`, to: c.slug })}>重新命名</button>
+                              <button className="btn-secondary text-sm" onClick={async () => {
+                                if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
+                                const status = prompt('子頁狀態：', '') || undefined
+                                const route = prompt('子頁路由：', '') || undefined
+                                const notes = prompt('子頁備註：', '') || undefined
+                                try {
+                                  const { updateSubpageMeta } = await import('../utils/tauriCommands')
+                                  await updateSubpageMeta(moduleName, p.slug, c.slug, { status, route, notes })
+                                  await refreshPages()
+                                  showSuccess('已更新子頁 Meta')
+                                } catch (e) {
+                                  const m = e instanceof Error ? e.message : String(e)
+                                  showError('更新子頁 Meta 失敗', m)
+                                }
+                              }}>編輯</button>
                               <button className="btn-secondary text-sm" onClick={async () => {
                                 if (!confirm(`刪除子頁 ${c.slug}？`)) return
                                 try {
