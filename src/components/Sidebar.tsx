@@ -52,7 +52,7 @@ const navigation: NavItem[] = [
     href: '/settings',
     icon: Cog6ToothIcon,
     description: '系統設定和偏好',
-    enabled: false,
+    enabled: true,
   }
 ]
 

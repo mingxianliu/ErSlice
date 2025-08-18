@@ -8,11 +8,13 @@ import {
 } from '@heroicons/react/24/outline'
 import { useEffect } from 'react'
 import { useProjectStore } from '@/stores/project'
+import { generateProjectMermaidHtml } from '@/utils/tauriCommands'
 
 // ErSlice 頂部導航欄組件 - 包含主題切換和用戶功能
 const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme()
   const project = useProjectStore((s) => s.project)
+  const tauri = useProjectStore((s) => s.tauri)
   const initProject = useProjectStore((s) => s.init)
 
   useEffect(() => {
@@ -44,6 +46,24 @@ const Header: React.FC = () => {
             {project.name}
           </div>
         )}
+        {/* 站點圖 HTML 預覽 */}
+        <button
+          onClick={async () => {
+            if (!tauri) return
+            try {
+              const path = await generateProjectMermaidHtml()
+              const { open } = await import('@tauri-apps/plugin-shell')
+              await open(path)
+            } catch (e) {
+              console.error(e)
+            }
+          }}
+          disabled={!tauri}
+          className="px-3 py-1.5 text-xs rounded bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 hover:bg-purple-200 dark:hover:bg-purple-800/50 disabled:opacity-50"
+          title={tauri ? '生成並預覽站點圖 HTML（ai-docs/project-sitemap.html）' : '需在 Tauri 環境使用'}
+        >
+          站點圖 HTML 預覽
+        </button>
         {/* 主題切換按鈕 */}
         <button
           onClick={toggleTheme}
