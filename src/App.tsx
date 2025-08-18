@@ -1,6 +1,7 @@
-import React from 'react'
+
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { useToast, ToastContainer } from './components/ui/Toast'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import DesignAssets from './pages/DesignAssets'
@@ -9,6 +10,8 @@ import AISpecGenerator from './pages/AISpecGenerator'
 
 // ErSlice 主應用組件 - 前端切版說明包生成器
 function App() {
+  const { toasts, removeToast } = useToast()
+
   return (
     <ThemeProvider>
       <Router>
@@ -21,6 +24,9 @@ function App() {
             <Route path="/ai-spec-generator" element={<AISpecGenerator />} />
           </Routes>
         </Layout>
+        
+        {/* Toast 通知系統 */}
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </Router>
     </ThemeProvider>
   )

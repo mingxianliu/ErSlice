@@ -1,5 +1,5 @@
 import React from 'react'
-import { SparklesIcon, DocumentTextIcon, CodeBracketIcon, EyeIcon } from '@heroicons/react/24/outline'
+import { SparklesIcon, DocumentTextIcon, EyeIcon } from '@heroicons/react/24/outline'
 
 // AI 規格類型介面
 interface AISpecType {
