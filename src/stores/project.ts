@@ -10,6 +10,7 @@ export interface ProjectConfig {
   zipDefault: boolean
   includeBoneDefault: boolean
   includeSpecsDefault: boolean
+  overwriteStrategyDefault?: 'overwrite' | 'skip' | 'rename'
 }
 
 interface ProjectState {
@@ -41,6 +42,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
           zipDefault: cfg.zip_default,
           includeBoneDefault: cfg.include_bone_default,
           includeSpecsDefault: cfg.include_specs_default,
+          overwriteStrategyDefault: cfg.overwrite_strategy_default || 'overwrite',
         } })
       } else {
         // fallback to localStorage
@@ -49,7 +51,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
           set({ project: JSON.parse(raw) })
         } else {
           const def: ProjectConfig = {
-            name: 'Default Project', slug: 'default', zipDefault: true, includeBoneDefault: false, includeSpecsDefault: false,
+            name: 'Default Project', slug: 'default', zipDefault: true, includeBoneDefault: false, includeSpecsDefault: false, overwriteStrategyDefault: 'overwrite',
           }
           set({ project: def })
           localStorage.setItem('erslice.project.default', JSON.stringify(def))
@@ -64,4 +66,3 @@ export const useProjectStore = create<ProjectState>((set) => ({
     localStorage.setItem('erslice.project.default', JSON.stringify(cfg))
   }
 }))
-

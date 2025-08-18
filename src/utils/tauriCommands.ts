@@ -342,6 +342,7 @@ export interface TauriProjectConfig {
   zip_default: boolean
   include_bone_default: boolean
   include_specs_default: boolean
+  overwrite_strategy_default?: 'overwrite' | 'skip' | 'rename' | null
 }
 
 export async function getDefaultProject(): Promise<TauriProjectConfig> {

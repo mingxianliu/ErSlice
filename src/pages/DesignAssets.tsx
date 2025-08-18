@@ -20,10 +20,10 @@ const DesignAssets: React.FC = () => {
   const [openBulkGen, setOpenBulkGen] = useState(false)
   const [bulkOpts, setBulkOpts] = useState({ html: true, css: true, responsive: true })
   const [bulkScope, setBulkScope] = useState<'all' | 'selected'>('all')
-  const [overwrite, setOverwrite] = useState<OverwriteStrategy>('overwrite')
   const [bulkRunning, setBulkRunning] = useState(false)
   const [openUnified, setOpenUnified] = useState(false)
   const projectStore = useProjectStore()
+  const [overwrite, setOverwrite] = useState<OverwriteStrategy>(projectStore.project?.overwriteStrategyDefault ?? 'overwrite')
   const [unifiedZip, setUnifiedZip] = useState(projectStore.project?.zipDefault ?? true)
   const [unifiedIncludeSkeleton, setUnifiedIncludeSkeleton] = useState(projectStore.project?.includeBoneDefault ?? false)
   const [unifiedIncludeSpecs, setUnifiedIncludeSpecs] = useState(projectStore.project?.includeSpecsDefault ?? false)
@@ -38,6 +38,7 @@ const DesignAssets: React.FC = () => {
       setUnifiedZip(p.zipDefault)
       setUnifiedIncludeSkeleton(p.includeBoneDefault)
       setUnifiedIncludeSpecs(p.includeSpecsDefault)
+      setOverwrite(p.overwriteStrategyDefault ?? 'overwrite')
       setUnifiedPaths({
         assets: p.designAssetsRoot || unifiedPaths.assets,
         doc1: p.aiDocFrontendInstructions || unifiedPaths.doc1,
@@ -172,6 +173,23 @@ const DesignAssets: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-400">管理前端模組的設計稿、切圖和資源檔案</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              if (!store.tauriAvailable) { showError('Tauri 不可用', '請在 Tauri 環境中執行'); return }
+              try {
+                const path = await (await import('@/utils/tauriCommands')).generateProjectMermaidHtml()
+                const { open } = await import('@tauri-apps/plugin-shell')
+                await open(path)
+              } catch (e) {
+                const m = e instanceof Error ? e.message : String(e)
+                showError('站點圖預覽失敗', m)
+              }
+            }}
+            className="btn-secondary"
+            title="生成專案站點圖並開啟 HTML 預覽"
+          >
+            站點圖 HTML 預覽
+          </button>
           <button onClick={() => setOpenProject(true)} className="btn-secondary" title="專案設定">專案設定</button>
           {!store.viewArchived && (
             <button
@@ -323,6 +341,18 @@ const DesignAssets: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">外部設計資產根目錄</label>
                 <input value={unifiedPaths.assets} onChange={(e) => setUnifiedPaths({ ...unifiedPaths, assets: e.target.value })} placeholder="/Users/.../frontend-development-guide/design-assets" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">覆蓋策略（預設依專案設定）</label>
+                <select
+                  value={overwrite}
+                  onChange={(e) => setOverwrite(e.target.value as OverwriteStrategy)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="overwrite">覆蓋既有檔案</option>
+                  <option value="skip">跳過已存在檔案</option>
+                  <option value="rename">自動重新命名</option>
+                </select>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">AI 前端開發指引</label>
@@ -362,7 +392,7 @@ const DesignAssets: React.FC = () => {
                       includeCss: unifiedIncludeSkeleton,
                       includeResponsive: unifiedIncludeSkeleton,
                       includePageSpecs: unifiedIncludeSpecs,
-                      overwriteStrategy: 'overwrite',
+                      overwriteStrategy: overwrite,
                       makeZip: unifiedZip,
                     })
                     showSuccess('導出完成', `模組骨架：${rs.modulesCount}，輸出：${rs.outputDir}${rs.zipPath ? `；ZIP：${rs.zipPath}` : ''}`)
@@ -806,6 +836,7 @@ const ProjectSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   const [includeBone, setIncludeBone] = useState(project?.includeBoneDefault ?? false)
   const [includeSpecs, setIncludeSpecs] = useState(project?.includeSpecsDefault ?? false)
   const [saving, setSaving] = useState(false)
+  const [overwriteDefault, setOverwriteDefault] = useState<'overwrite'|'skip'|'rename'>(project?.overwriteStrategyDefault ?? 'overwrite')
 
   const save = async () => {
     setSaving(true)
@@ -818,6 +849,7 @@ const ProjectSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         zip_default: zipDefault,
         include_bone_default: includeBone,
         include_specs_default: includeSpecs,
+        overwrite_strategy_default: overwriteDefault,
       }
       if (tauri) {
         await updateDefaultProject(cfg)
@@ -831,9 +863,10 @@ const ProjectSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
           zipDefault: latest.zip_default,
           includeBoneDefault: latest.include_bone_default,
           includeSpecsDefault: latest.include_specs_default,
+          overwriteStrategyDefault: latest.overwrite_strategy_default || 'overwrite',
         })
       } else {
-        setLocal({ name, slug, designAssetsRoot: assetsRoot || undefined, aiDocFrontendInstructions: doc1 || undefined, aiDocUiFriendly: doc2 || undefined, zipDefault, includeBoneDefault: includeBone, includeSpecsDefault: includeSpecs })
+        setLocal({ name, slug, designAssetsRoot: assetsRoot || undefined, aiDocFrontendInstructions: doc1 || undefined, aiDocUiFriendly: doc2 || undefined, zipDefault, includeBoneDefault: includeBone, includeSpecsDefault: includeSpecs, overwriteStrategyDefault: overwriteDefault })
       }
       onClose()
     } finally {
@@ -876,6 +909,14 @@ const ProjectSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
             <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={zipDefault} onChange={(e) => setZipDefault(e.target.checked)} /> 導出後自動 zip</label>
             <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={includeBone} onChange={(e) => setIncludeBone(e.target.checked)} /> 產出頁面骨架（HTML/CSS）</label>
             <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={includeSpecs} onChange={(e) => setIncludeSpecs(e.target.checked)} /> 產出每頁 AI 規格</label>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">預設覆蓋策略</label>
+            <select value={overwriteDefault} onChange={(e) => setOverwriteDefault(e.target.value as any)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+              <option value="overwrite">覆蓋既有檔案</option>
+              <option value="skip">跳過已存在檔案</option>
+              <option value="rename">自動重新命名</option>
+            </select>
           </div>
         </div>
         <div className="mt-6 flex items-center justify-between gap-2">

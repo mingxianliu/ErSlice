@@ -255,17 +255,21 @@ const DesignModuleDetail: React.FC = () => {
                   <button className="btn-primary text-sm" onClick={async () => {
                     const slug = (newSubSlug[p.slug] || '').trim()
                     if (!slug) return
+                    const list = slug.split(',').map(s => s.trim()).filter(Boolean)
                     try {
-                      await createSubpage(moduleName, p.slug, slug)
+                      for (const s of list) {
+                        await createSubpage(moduleName, p.slug, s)
+                      }
                       setNewSubSlug((prev) => ({ ...prev, [p.slug]: '' }))
                       await refreshPages()
-                      showSuccess('已新增子頁')
+                      showSuccess(`已新增 ${list.length} 個子頁`)
                     } catch (e) {
                       const m = e instanceof Error ? e.message : String(e)
                       showError('新增子頁失敗', m)
                     }
                   }}>新增子頁</button>
                 </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">可用逗號分隔批次新增，例如：list,edit,review</div>
                     <div className="space-y-1">
                       {p.children.length === 0 ? (
                         <div className="text-xs text-gray-500 dark:text-gray-400">尚無子頁</div>
@@ -507,11 +511,15 @@ const DesignModuleDetail: React.FC = () => {
               className="btn-primary text-sm"
               disabled={!store.tauriAvailable || !newPageSlug.trim()}
               onClick={async () => {
+                const list = newPageSlug.split(',').map(s => s.trim()).filter(Boolean)
+                if (list.length === 0) return
                 try {
-                  await createModulePage(moduleName, newPageSlug.trim())
+                  for (const slug of list) {
+                    await createModulePage(moduleName, slug)
+                  }
                   setNewPageSlug('')
                   await refreshPages()
-                  showSuccess('已新增頁面')
+                  showSuccess(`已新增 ${list.length} 個頁面`)
                 } catch (e) {
                   const m = e instanceof Error ? e.message : String(e)
                   showError('新增頁面失敗', m)
@@ -521,6 +529,7 @@ const DesignModuleDetail: React.FC = () => {
               新增頁面
             </button>
           </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">可用逗號分隔批次新增，例如：list,detail,create</div>
         </div>
         {renderPageSection()}
       </div>

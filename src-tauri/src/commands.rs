@@ -48,6 +48,7 @@ pub struct ProjectConfig {
     pub zip_default: bool,
     pub include_bone_default: bool,
     pub include_specs_default: bool,
+    pub overwrite_strategy_default: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -922,6 +923,7 @@ pub async fn get_or_init_default_project() -> Result<ProjectConfig, String> {
             zip_default: true,
             include_bone_default: false,
             include_specs_default: false,
+            overwrite_strategy_default: Some("overwrite".to_string()),
         };
         if let Err(e) = std::fs::write(&config_path, serde_json::to_string_pretty(&cfg).unwrap()) {
             return Err(format!("寫入 project.json 失敗: {}", e));
