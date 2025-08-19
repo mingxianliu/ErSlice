@@ -16,8 +16,9 @@ export default defineConfig({
     }
   },
   server: {
-    port: 5175,
-    host: true
+    port: process.env.PORT ? parseInt(process.env.PORT) : 28888,
+    host: '127.0.0.1',
+    strictPort: false // 允許自動尋找可用端口
   },
   build: {
     outDir: 'dist',

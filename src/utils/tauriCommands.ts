@@ -208,13 +208,17 @@ export async function generateSelectedSlicePackages(params: {
 }
 
 // 檢查 Tauri 是否可用
+let __tauriAvailableCache: boolean | null = null
 export async function checkTauriAvailable(): Promise<boolean> {
+  if (typeof __tauriAvailableCache === 'boolean') return __tauriAvailableCache
   try {
     // 嘗試調用一個簡單的命令來檢查 Tauri 是否可用
     await invoke('get_design_modules')
+    __tauriAvailableCache = true
     return true
   } catch (error) {
     console.warn('Tauri 不可用:', error)
+    __tauriAvailableCache = false
     return false
   }
 }
@@ -370,6 +374,8 @@ export interface TauriProjectConfig {
   include_bone_default: boolean
   include_specs_default: boolean
   overwrite_strategy_default?: 'overwrite' | 'skip' | 'rename' | null
+  mermaid_theme?: string | null
+  mermaid_layout_direction?: string | null
 }
 
 export async function getDefaultProject(): Promise<TauriProjectConfig> {
@@ -548,6 +554,175 @@ export async function updatePageMeta(moduleName: string, slug: string, meta: Pag
 export async function updateSubpageMeta(moduleName: string, parentSlug: string, slug: string, meta: PageMetaUpdate): Promise<string> {
   try {
     return await invoke<string>('update_subpage_meta', { moduleName, parentSlug, slug, meta })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+// Mermaid customization
+export interface MermaidOptions {
+  theme: string
+  layout_direction: string
+}
+
+export async function getMermaidOptions(): Promise<MermaidOptions> {
+  try {
+    const project = await getDefaultProject()
+    return {
+      theme: project.mermaid_theme || 'default',
+      layout_direction: project.mermaid_layout_direction || 'TD'
+    }
+  } catch (error) {
+    return {
+      theme: 'default',
+      layout_direction: 'TD'
+    }
+  }
+}
+
+export async function updateMermaidOptions(options: Partial<MermaidOptions>): Promise<TauriProjectConfig> {
+  try {
+    const project = await getDefaultProject()
+    const updatedProject = {
+      ...project,
+      mermaid_theme: options.theme || project.mermaid_theme,
+      mermaid_layout_direction: options.layout_direction || project.mermaid_layout_direction
+    }
+    return await updateDefaultProject(updatedProject)
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+// Sitemap export/import
+export interface SitemapExport {
+  project_name: string
+  export_timestamp: string
+  modules: ModuleExport[]
+}
+
+export interface ModuleExport {
+  name: string
+  description: string
+  pages: PageExport[]
+}
+
+export interface PageExport {
+  slug: string
+  title?: string
+  status?: string
+  route?: string
+  notes?: string
+  subpages: SubpageExport[]
+}
+
+export interface SubpageExport {
+  slug: string
+  title?: string
+  status?: string
+  route?: string
+  notes?: string
+}
+
+export async function exportSitemap(): Promise<string> {
+  try {
+    return await invoke<string>('export_sitemap')
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+export async function importSitemap(filePath: string): Promise<string> {
+  try {
+    return await invoke<string>('import_sitemap', { filePath })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+// Sitemap analytics
+export interface SitemapAnalytics {
+  project_name: string
+  total_modules: number
+  total_pages: number
+  total_subpages: number
+  average_pages_per_module: number
+  modules_with_deep_structure: string[]
+  orphaned_pages: string[]
+  status_distribution: Record<string, number>
+  deepest_module?: string
+  max_depth: number
+  coverage_metrics: CoverageMetrics
+}
+
+export interface CoverageMetrics {
+  pages_with_screenshots: number
+  pages_with_html: number
+  pages_with_css: number
+  completion_percentage: number
+  modules_completion: Record<string, ModuleCompletion>
+}
+
+export interface ModuleCompletion {
+  total_pages: number
+  pages_with_assets: number
+  completion_rate: number
+}
+
+export async function analyzeSitemap(): Promise<SitemapAnalytics> {
+  try {
+    return await invoke<SitemapAnalytics>('analyze_sitemap')
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+// Performance optimization APIs
+export async function clearSitemapCache(): Promise<string> {
+  try {
+    return await invoke<string>('clear_sitemap_cache')
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+export async function getCacheStats(): Promise<any> {
+  try {
+    return await invoke<any>('get_cache_stats')
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+export async function preloadModuleCache(moduleName: string): Promise<string> {
+  try {
+    return await invoke<string>('preload_module_cache', { moduleName })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+export async function preloadAllModulesCache(): Promise<string> {
+  try {
+    return await invoke<string>('preload_all_modules_cache')
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+// Enhanced detailed workflow generation
+export async function generateUserWorkflowMermaidHtml(module: string): Promise<string> {
+  try {
+    return await invoke<string>('generate_user_workflow_mermaid_html', { module })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))

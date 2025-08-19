@@ -1,9 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, Duration};
 
 
 // 設計資產模組資訊
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DesignModule {
     pub id: String,
     pub name: String,
@@ -49,12 +52,76 @@ pub struct ProjectConfig {
     pub include_bone_default: bool,
     pub include_specs_default: bool,
     pub overwrite_strategy_default: Option<String>,
+    pub mermaid_theme: Option<String>,
+    pub mermaid_layout_direction: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MermaidOptions {
+    pub theme: String,
+    pub layout_direction: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ActiveProject { slug: String }
 
 fn projects_root() -> PathBuf { PathBuf::from("projects") }
+
+// Performance optimization: Caching system
+#[derive(Debug, Clone)]
+struct CachedData<T> {
+    data: T,
+    timestamp: SystemTime,
+}
+
+#[derive(Debug, Clone)]
+struct SitemapCache {
+    module_trees: HashMap<String, CachedData<Vec<PageNode>>>,
+    analytics: Option<CachedData<SitemapAnalytics>>,
+    design_modules: Option<CachedData<Vec<DesignModule>>>,
+}
+
+impl SitemapCache {
+    fn new() -> Self {
+        Self {
+            module_trees: HashMap::new(),
+            analytics: None,
+            design_modules: None,
+        }
+    }
+
+    fn is_fresh<T>(cached: &Option<CachedData<T>>, max_age: Duration) -> bool {
+        cached.as_ref().map_or(false, |c| 
+            c.timestamp.elapsed().unwrap_or(Duration::from_secs(0)) < max_age
+        )
+    }
+
+    fn is_module_tree_fresh(&self, module_name: &str, max_age: Duration) -> bool {
+        self.module_trees.get(module_name).map_or(false, |c|
+            c.timestamp.elapsed().unwrap_or(Duration::from_secs(0)) < max_age
+        )
+    }
+
+    fn invalidate_all(&mut self) {
+        self.module_trees.clear();
+        self.analytics = None;
+        self.design_modules = None;
+    }
+
+    fn invalidate_module(&mut self, module_name: &str) {
+        self.module_trees.remove(module_name);
+        self.analytics = None; // Analytics depend on all modules
+    }
+}
+
+lazy_static::lazy_static! {
+    static ref SITEMAP_CACHE: Arc<Mutex<SitemapCache>> = Arc::new(Mutex::new(SitemapCache::new()));
+}
+
+// Cache configuration
+const CACHE_DURATION_SHORT: Duration = Duration::from_secs(30);  // 30 seconds for frequently changing data
+const CACHE_DURATION_MEDIUM: Duration = Duration::from_secs(300); // 5 minutes for module trees
+const CACHE_DURATION_LONG: Duration = Duration::from_secs(600);   // 10 minutes for analytics
 
 fn read_active_slug() -> Option<String> {
     let active = projects_root().join("active.json");
@@ -996,6 +1063,8 @@ pub async fn get_or_init_default_project() -> Result<ProjectConfig, String> {
             include_bone_default: false,
             include_specs_default: false,
             overwrite_strategy_default: Some("overwrite".to_string()),
+            mermaid_theme: Some("default".to_string()),
+            mermaid_layout_direction: Some("TD".to_string()),
         };
         if let Err(e) = std::fs::write(&config_path, serde_json::to_string_pretty(&cfg).unwrap()) {
             return Err(format!("寫入 project.json 失敗: {}", e));
@@ -1064,7 +1133,8 @@ pub async fn create_project(slug: String, name: String) -> Result<ProjectConfig,
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let cfg = ProjectConfig {
         name, slug: slug.clone(), design_assets_root: None, ai_doc_frontend_instructions: None, ai_doc_ui_friendly: None,
-        zip_default: true, include_bone_default: false, include_specs_default: false, overwrite_strategy_default: Some("overwrite".into())
+        zip_default: true, include_bone_default: false, include_specs_default: false, overwrite_strategy_default: Some("overwrite".into()),
+        mermaid_theme: Some("default".to_string()), mermaid_layout_direction: Some("TD".to_string())
     };
     std::fs::write(dir.join("project.json"), serde_json::to_string_pretty(&cfg).unwrap()).map_err(|e| e.to_string())?;
     Ok(cfg)
@@ -1093,6 +1163,29 @@ pub async fn switch_project(slug: String) -> Result<ProjectConfig, String> {
     let raw = std::fs::read_to_string(&cfgp).map_err(|e| e.to_string())?;
     let cfg: ProjectConfig = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
     Ok(cfg)
+}
+
+// Helper function to get current Mermaid settings
+fn get_mermaid_settings() -> MermaidOptions {
+    // Directly read the project config file if available
+    let projects_root = projects_root();
+    let slug = read_active_slug().unwrap_or_else(|| "default".to_string());
+    let config_path = projects_root.join(&slug).join("project.json");
+    
+    if let Ok(raw) = std::fs::read_to_string(&config_path) {
+        if let Ok(cfg) = serde_json::from_str::<ProjectConfig>(&raw) {
+            return MermaidOptions {
+                theme: cfg.mermaid_theme.unwrap_or_else(|| "default".to_string()),
+                layout_direction: cfg.mermaid_layout_direction.unwrap_or_else(|| "TD".to_string())
+            };
+        }
+    }
+    
+    // Fallback defaults
+    MermaidOptions {
+        theme: "default".to_string(),
+        layout_direction: "TD".to_string()
+    }
 }
 
 // ====== Pages under module (top-level only, Phase 1) ======
@@ -1128,6 +1221,12 @@ pub async fn create_module_page(module_name: String, slug: String) -> Result<Pag
     std::fs::create_dir_all(page_dir.join("screenshots")).map_err(|e| format!("建立資料夾失敗: {}", e))?;
     std::fs::create_dir_all(page_dir.join("html")).map_err(|e| format!("建立資料夾失敗: {}", e))?;
     std::fs::create_dir_all(page_dir.join("css")).map_err(|e| format!("建立資料夾失敗: {}", e))?;
+    
+    // Invalidate cache
+    {
+        let mut cache = SITEMAP_CACHE.lock().unwrap();
+        cache.invalidate_module(&module_name);
+    }
     let meta = serde_json::json!({
         "slug": slug,
         "title": slug,
@@ -1166,8 +1265,34 @@ pub async fn rename_module_page(module_name: String, from_slug: String, to_slug:
 // ====== Subpages (one-level) ======
 #[tauri::command]
 pub async fn get_module_tree(module_name: String) -> Result<Vec<PageNode>, String> {
+    // Check cache first
+    {
+        let cache = SITEMAP_CACHE.lock().unwrap();
+        if cache.is_module_tree_fresh(&module_name, CACHE_DURATION_MEDIUM) {
+            if let Some(cached) = cache.module_trees.get(&module_name) {
+                return Ok(cached.data.clone());
+            }
+        }
+    }
+
+    // Build tree from filesystem
+    let result = build_module_tree_uncached(&module_name)?;
+
+    // Cache the result
+    {
+        let mut cache = SITEMAP_CACHE.lock().unwrap();
+        cache.module_trees.insert(module_name.clone(), CachedData {
+            data: result.clone(),
+            timestamp: SystemTime::now(),
+        });
+    }
+
+    Ok(result)
+}
+
+fn build_module_tree_uncached(module_name: &str) -> Result<Vec<PageNode>, String> {
     use std::fs;
-    let module_dir = PathBuf::from("design-assets").join(&module_name);
+    let module_dir = PathBuf::from("design-assets").join(module_name);
     if !module_dir.exists() { return Err("設計模組不存在".to_string()); }
     let pages_dir = module_dir.join("pages");
     let mut map_pages: std::collections::BTreeMap<String, PageNode> = std::collections::BTreeMap::new();
@@ -1259,6 +1384,12 @@ pub async fn create_subpage(module_name: String, parent_slug: String, slug: Stri
     std::fs::create_dir_all(base.join("screenshots")).map_err(|e| format!("建立資料夾失敗: {}", e))?;
     std::fs::create_dir_all(base.join("html")).map_err(|e| format!("建立資料夾失敗: {}", e))?;
     std::fs::create_dir_all(base.join("css")).map_err(|e| format!("建立資料夾失敗: {}", e))?;
+    
+    // Invalidate cache
+    {
+        let mut cache = SITEMAP_CACHE.lock().unwrap();
+        cache.invalidate_module(&module_name);
+    }
     let meta = serde_json::json!({
         "slug": slug,
         "title": slug,
@@ -1401,8 +1532,9 @@ pub async fn generate_project_mermaid() -> Result<MermaidResult, String> {
     let mut total_subpages = 0usize;
 
     let mut buf = String::new();
+    let mermaid_settings = get_mermaid_settings();
     buf.push_str("%% Auto-generated by ErSlice\n");
-    buf.push_str("flowchart TD\n");
+    buf.push_str(&format!("flowchart {}\n", mermaid_settings.layout_direction));
     buf.push_str("  classDef mainModule fill:#e8f5e8,stroke:#4caf50,stroke-width:3px\n");
     buf.push_str("  classDef pageLevel fill:#f1f8e9,stroke:#8bc34a,stroke-width:2px\n");
     buf.push_str("  classDef componentLevel fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px\n");
@@ -1657,47 +1789,8 @@ pub async fn generate_project_mermaid_html() -> Result<String, String> {
     let res = generate_project_mermaid().await?;
     let mmd_path = PathBuf::from(&res.mmd_path);
     let content = fs::read_to_string(&mmd_path).map_err(|e| format!("讀取 mmd 失敗: {}", e))?;
+    let mermaid_settings = get_mermaid_settings();
 
-    let html = format!(r#"<!DOCTYPE html>
-<html lang=\"zh-TW\">
-<head>
-  <meta charset=\"utf-8\" />
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-  <title>Project Sitemap - Mermaid</title>
-  <style>body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif; padding: 16px; }}</style>
-  <script type=\"module\">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-    mermaid.initialize({ startOnLoad: true, theme: 'default' });
-    // 點擊事件：支援 file:// 連結（由 data-href 提供）
-    window.addEventListener('DOMContentLoaded', () => {
-      setTimeout(() => {
-        document.querySelectorAll('svg g.node').forEach((n) => {
-          const title = n.querySelector('title');
-          const id = title ? title.textContent : null;
-          if (id && window.__ERSLICE_LINKS && window.__ERSLICE_LINKS[id]) {
-            n.style.cursor = 'pointer';
-            n.addEventListener('click', () => {
-              const href = window.__ERSLICE_LINKS[id];
-              if (href) window.location.href = href;
-            });
-          }
-        });
-      }, 300);
-    });
-  </script>
-  <script>window.__ERSLICE_TS = Date.now(); window.__ERSLICE_LINKS = {};</script>
-  </head>
-<body>
-  <h1>Project Sitemap (Mermaid)</h1>
-  <div class=\"mermaid\">
-{graph}
-  </div>
-  <script>window.__ERSLICE_LINKS = {links};</script>
-</body>
-</html>
-"#, graph = content);
-
-    let html_path = mmd_path.parent().unwrap_or_else(|| std::path::Path::new(".")).join("project-sitemap.html");
     // 建立節點點擊對應的 file:// 連結（以資料夾為主）
     let mut links: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
     // 從專案目錄生成 id 與對應路徑：依生成規則 mid, pid, sid
@@ -1725,8 +1818,8 @@ pub async fn generate_project_mermaid_html() -> Result<String, String> {
                         for se in sentries.flatten() {
                             let spath = se.path();
                             if !spath.is_dir() { continue; }
-                            let sslug = spath.file_name().and_then(|s| s.to_str()).unwrap_or("");
-                            let sid = format!("{}_{}", pid, sanitize_id(sslug));
+                            let sslug = spath.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
+                            let sid = format!("{}__{}", pid, sanitize_id(&sslug));
                             links.insert(sid, format!("file://{}", spath.to_string_lossy().replace(' ', "%20")));
                         }
                     }
@@ -1734,8 +1827,47 @@ pub async fn generate_project_mermaid_html() -> Result<String, String> {
             }
         }
     }
-    let links_json = serde_json::to_string(&links).map_err(|e| e.to_string())?;
-    let html = html.replace("{links}", &links_json);
+    let links_json = serde_json::to_string(&links).unwrap_or_else(|_| "{}".to_string());
+
+    let html = format!(r#"<!DOCTYPE html>
+<html lang=\"zh-TW\">
+<head>
+  <meta charset=\"utf-8\" />
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+  <title>Project Sitemap - Mermaid</title>
+  <style>body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif; padding: 16px; }}</style>
+  <script type=\"module\">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({{ startOnLoad: true, theme: '{}' }});
+    // 點擊事件：支援 file:// 連結（由 data-href 提供）
+    window.addEventListener('DOMContentLoaded', () => {{
+      setTimeout(() => {{
+        document.querySelectorAll('svg g.node').forEach((n) => {{
+          const title = n.querySelector('title');
+          const id = title ? title.textContent : null;
+          if (id && window.__ERSLICE_LINKS && window.__ERSLICE_LINKS[id]) {{
+            n.style.cursor = 'pointer';
+            n.addEventListener('click', () => {{
+              const href = window.__ERSLICE_LINKS[id];
+              if (href) window.location.href = href;
+            }});
+          }}
+        }});
+      }}, 300);
+    }});
+  </script>
+  <script>window.__ERSLICE_TS = Date.now(); window.__ERSLICE_LINKS = {};</script>
+  </head>
+<body>
+  <h1>Project Sitemap (Mermaid)</h1>
+  <div class=\"mermaid\">
+{}
+  </div>
+</body>
+</html>
+"#, mermaid_settings.theme, links_json, content);
+
+    let html_path = mmd_path.parent().unwrap_or_else(|| std::path::Path::new(".")).join("project-sitemap.html");
     fs::write(&html_path, html).map_err(|e| format!("寫入 HTML 檔案失敗: {}", e))?;
     Ok(html_path.to_string_lossy().to_string())
 }
@@ -1749,7 +1881,8 @@ pub async fn generate_project_mermaid_html() -> Result<String, String> {
     if !mdir.exists() { return Err("模組不存在或沒有 pages".into()); }
 
     let mut buf = String::new();
-    buf.push_str("flowchart TD\n");
+    let mermaid_settings = get_mermaid_settings();
+    buf.push_str(&format!("flowchart {}\n", mermaid_settings.layout_direction));
     buf.push_str("  classDef mainModule fill:#e8f5e8,stroke:#4caf50,stroke-width:3px\n");
     buf.push_str("  classDef pageLevel fill:#f1f8e9,stroke:#8bc34a,stroke-width:2px\n");
     buf.push_str("  classDef componentLevel fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px\n");
@@ -1813,10 +1946,11 @@ pub async fn generate_project_mermaid_html() -> Result<String, String> {
     fs::write(&mmd_path, buf).map_err(|e| e.to_string())?;
     // 重用 project html 生成功能：讀入 mmd 內容
     let content = std::fs::read_to_string(&mmd_path).map_err(|e| e.to_string())?;
+    let mermaid_settings = get_mermaid_settings();
     let html = format!(r#"<!DOCTYPE html>
 <html lang=\"zh-TW\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Module Sitemap - {module}</title>
-  <script type=\"module\">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
-</head><body><h1>Module Sitemap - {module}</h1><div class=\"mermaid\">{graph}</div></body></html>"#, module=module, graph=content);
+  <script type=\"module\">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({{ startOnLoad: true, theme: '{}' }});</script>
+</head><body><h1>Module Sitemap - {module}</h1><div class=\"mermaid\">{graph}</div></body></html>"#, mermaid_settings.theme, module=module, graph=content);
     let html_path = PathBuf::from("ai-docs").join(format!("module-{}-sitemap.html", sanitize_id(&module)));
   fs::write(&html_path, html).map_err(|e| e.to_string())?;
   Ok(html_path.to_string_lossy().to_string())
@@ -1841,7 +1975,8 @@ pub async fn generate_module_crud_mermaid_html(module: String) -> Result<String,
     let has_detail = has("detail");
 
     let mut buf = String::new();
-    buf.push_str("flowchart TD\n");
+    let mermaid_settings = get_mermaid_settings();
+    buf.push_str(&format!("flowchart {}\n", mermaid_settings.layout_direction));
     buf.push_str("  classDef mainModule fill:#e8f5e8,stroke:#4caf50,stroke-width:3px\n");
     buf.push_str("  classDef pageLevel fill:#f1f8e9,stroke:#8bc34a,stroke-width:2px\n");
     buf.push_str("  classDef decision fill:#fff8e1,stroke:#ffc107,stroke-width:2px\n");
@@ -1901,10 +2036,11 @@ pub async fn generate_module_crud_mermaid_html(module: String) -> Result<String,
     std::fs::create_dir_all(mmd_path.parent().unwrap()).map_err(|e| e.to_string())?;
     fs::write(&mmd_path, buf).map_err(|e| e.to_string())?;
     let content = std::fs::read_to_string(&mmd_path).map_err(|e| e.to_string())?;
+    let mermaid_settings = get_mermaid_settings();
     let html = format!(r#"<!DOCTYPE html>
 <html lang=\"zh-TW\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Module CRUD - {module}</title>
-  <script type=\"module\">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
-</head><body><h1>Module CRUD - {module}</h1><div class=\"mermaid\">{graph}</div></body></html>"#, module=module, graph=content);
+  <script type=\"module\">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({{ startOnLoad: true, theme: '{}' }});</script>
+</head><body><h1>Module CRUD - {module}</h1><div class=\"mermaid\">{graph}</div></body></html>"#, mermaid_settings.theme, module=module, graph=content);
     let html_path = std::path::PathBuf::from("ai-docs").join(format!("module-{}-crud.html", sanitize_id(&module)));
     fs::write(&html_path, html).map_err(|e| e.to_string())?;
     Ok(html_path.to_string_lossy().to_string())
@@ -1913,56 +2049,593 @@ pub async fn generate_module_crud_mermaid_html(module: String) -> Result<String,
 // 生成單頁站點圖（.html）
 #[tauri::command]
 pub async fn generate_page_mermaid_html(module: String, page: String) -> Result<String, String> {
+    generate_detailed_page_mermaid_html(module, page).await
+}
+
+// Generate detailed UI structure for a page
+fn generate_detailed_page_structure(
+    buf: &mut String, 
+    module: &str, 
+    page: &str, 
+    pid: &str, 
+    pmeta: &PageMeta,
+    pdir: &std::path::Path
+) -> Result<(), String> {
+    // Main page container
+    let page_title_fallback = page.to_string();
+    let page_title = pmeta.title.as_ref().unwrap_or(&page_title_fallback);
+    let route = pmeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default();
+    let status_badge = pmeta.status.as_ref().map(|s| format!(" [{}]", s)).unwrap_or_default();
+    
+    buf.push_str(&format!("  {}[\\\"📄 {} Page{}{}\\\"]\n", pid, page_title, status_badge, route));
+    buf.push_str(&format!("  class {} pageContainer\n", pid));
+    
+    // Header section with navigation and controls
+    let header_id = format!("{}_header", pid);
+    buf.push_str(&format!("  {} --> {}[\\\"📋 Header Section\\\"]\n", pid, header_id));
+    buf.push_str(&format!("  class {} headerSection\n", header_id));
+    
+    // Navigation breadcrumb
+    let breadcrumb_id = format!("{}_breadcrumb", header_id);
+    buf.push_str(&format!("  {} --> {}[\\\"🏠 {} > {}\\\"]\n", header_id, breadcrumb_id, module, page));
+    buf.push_str(&format!("  class {} navigation\n", breadcrumb_id));
+    
+    // Header buttons based on page type and meta
+    generate_header_buttons(buf, &header_id, module, page, pmeta);
+    
+    // Main content section
+    let content_id = format!("{}_content", pid);
+    buf.push_str(&format!("  {} --> {}[\\\"📝 Main Content\\\"]\n", pid, content_id));
+    buf.push_str(&format!("  class {} contentSection\n", content_id));
+    
+    // Generate content based on page type/action
+    let page_type = detect_page_type(page, pmeta);
+    generate_content_by_type(buf, &content_id, &page_type, module, page, pmeta, pdir)?;
+    
+    // Footer section with actions
+    let footer_id = format!("{}_footer", pid);
+    buf.push_str(&format!("  {} --> {}[\\\"⚡ Action Footer\\\"]\n", pid, footer_id));
+    buf.push_str(&format!("  class {} footerSection\n", footer_id));
+    
+    generate_footer_actions(buf, &footer_id, &page_type, module, page);
+    
+    // Sidebar if present
+    if has_sidebar(&page_type) {
+        let sidebar_id = format!("{}_sidebar", pid);
+        buf.push_str(&format!("  {} --> {}[\\\"📁 Sidebar\\\"]\n", pid, sidebar_id));
+        buf.push_str(&format!("  class {} sidebar\n", sidebar_id));
+        generate_sidebar_elements(buf, &sidebar_id, &page_type);
+    }
+    
+    // Generate modals and overlays
+    generate_modal_flows(buf, pid, &page_type, module, page);
+    
+    Ok(())
+}
+
+// Detect page type from slug and meta
+fn detect_page_type(page: &str, pmeta: &PageMeta) -> String {
+    if let Some(action) = &pmeta.action {
+        return action.clone();
+    }
+    
+    let lower_page = page.to_lowercase();
+    if lower_page.contains("list") || lower_page.contains("index") { "list".to_string() }
+    else if lower_page.contains("detail") || lower_page.contains("view") || lower_page.contains("show") { "detail".to_string() }
+    else if lower_page.contains("create") || lower_page.contains("new") || lower_page.contains("add") { "create".to_string() }
+    else if lower_page.contains("edit") || lower_page.contains("update") || lower_page.contains("modify") { "edit".to_string() }
+    else if lower_page.contains("delete") || lower_page.contains("remove") { "delete".to_string() }
+    else if lower_page.contains("search") || lower_page.contains("filter") { "search".to_string() }
+    else if lower_page.contains("dashboard") || lower_page.contains("overview") { "dashboard".to_string() }
+    else if lower_page.contains("settings") || lower_page.contains("config") { "settings".to_string() }
+    else { "general".to_string() }
+}
+
+// Generate header buttons based on page context
+fn generate_header_buttons(buf: &mut String, header_id: &str, module: &str, _page: &str, _pmeta: &PageMeta) {
+    // Back button
+    let back_btn_id = format!("{}_back_btn", header_id);
+    buf.push_str(&format!("  {} --> {}[\\\"← Back to {}\\\"]\n", header_id, back_btn_id, module));
+    buf.push_str(&format!("  class {} button\n", back_btn_id));
+    buf.push_str(&format!("  {} -.->|navigate| {}[\\\"/{} Module List\\\"]\n", back_btn_id, format!("{}_module_list", sanitize_id(module)), module));
+    
+    // Refresh button
+    let refresh_btn_id = format!("{}_refresh_btn", header_id);
+    buf.push_str(&format!("  {} --> {}[\\\"🔄 Refresh\\\"]\n", header_id, refresh_btn_id));
+    buf.push_str(&format!("  class {} button\n", refresh_btn_id));
+    
+    // Settings dropdown
+    let settings_btn_id = format!("{}_settings_btn", header_id);
+    buf.push_str(&format!("  {} --> {}[\\\"⚙️ Settings ▼\\\"]\n", header_id, settings_btn_id));
+    buf.push_str(&format!("  class {} dropdown\n", settings_btn_id));
+    
+    // Settings dropdown options
+    let settings_menu_id = format!("{}_settings_menu", settings_btn_id);
+    buf.push_str(&format!("  {} --> {}[\\\"• Page Settings\\n• Export Data\\n• View History\\\"]\n", settings_btn_id, settings_menu_id));
+    buf.push_str(&format!("  class {} dropdown\n", settings_menu_id));
+    
+    // Help button
+    let help_btn_id = format!("{}_help_btn", header_id);
+    buf.push_str(&format!("  {} --> {}[\\\"❓ Help\\\"]\n", header_id, help_btn_id));
+    buf.push_str(&format!("  class {} button\n", help_btn_id));
+}
+
+// Generate content based on page type
+fn generate_content_by_type(
+    buf: &mut String, 
+    content_id: &str, 
+    page_type: &str, 
+    module: &str, 
+    page: &str,
+    pmeta: &PageMeta,
+    pdir: &std::path::Path
+) -> Result<(), String> {
+    match page_type {
+        "list" => generate_list_page_content(buf, content_id, module, page),
+        "detail" => generate_detail_page_content(buf, content_id, module, page, pmeta),
+        "create" | "edit" => generate_form_page_content(buf, content_id, page_type, module, page),
+        "delete" => generate_delete_page_content(buf, content_id, module, page),
+        "search" => generate_search_page_content(buf, content_id, module, page),
+        "dashboard" => generate_dashboard_page_content(buf, content_id, module, page),
+        "settings" => generate_settings_page_content(buf, content_id, module, page),
+        _ => generate_general_page_content(buf, content_id, module, page, pmeta),
+    }
+    Ok(())
+}
+
+// Generate list page content with table and filters
+fn generate_list_page_content(buf: &mut String, content_id: &str, module: &str, page: &str) {
+    // Search/Filter bar
+    let filter_id = format!("{}_filters", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"🔍 Search & Filters\\\"]\n", content_id, filter_id));
+    buf.push_str(&format!("  class {} form\n", filter_id));
+    
+    // Search input
+    let search_input_id = format!("{}_search", filter_id);
+    buf.push_str(&format!("  {} --> {}[\\\"🔎 Search Input\\\"]\n", filter_id, search_input_id));
+    buf.push_str(&format!("  class {} input\n", search_input_id));
+    
+    // Filter dropdowns
+    let status_filter_id = format!("{}_status_filter", filter_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📊 Status Filter ▼\\\"]\n", filter_id, status_filter_id));
+    buf.push_str(&format!("  class {} dropdown\n", status_filter_id));
+    
+    let date_filter_id = format!("{}_date_filter", filter_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📅 Date Range ▼\\\"]\n", filter_id, date_filter_id));
+    buf.push_str(&format!("  class {} dropdown\n", date_filter_id));
+    
+    // Action buttons
+    let actions_id = format!("{}_actions", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"⚡ Bulk Actions\\\"]\n", content_id, actions_id));
+    buf.push_str(&format!("  class {} form\n", actions_id));
+    
+    let create_btn_id = format!("{}_create_btn", actions_id);
+    buf.push_str(&format!("  {} --> {}[\\\"➕ Create New\\\"]\n", actions_id, create_btn_id));
+    buf.push_str(&format!("  class {} button\n", create_btn_id));
+    let create_page_id = format!("{}_create_page", sanitize_id(module));
+    buf.push_str(&format!("  {} -.->|navigate| {}[\\\"/{}/create\\\"]\n", create_btn_id, create_page_id, module));
+    
+    let export_btn_id = format!("{}_export_btn", actions_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📤 Export CSV\\\"]\n", actions_id, export_btn_id));
+    buf.push_str(&format!("  class {} button\n", export_btn_id));
+    
+    let bulk_delete_btn_id = format!("{}_bulk_delete", actions_id);
+    buf.push_str(&format!("  {} --> {}[\\\"🗑️ Delete Selected\\\"]\n", actions_id, bulk_delete_btn_id));
+    buf.push_str(&format!("  class {} button\n", bulk_delete_btn_id));
+    
+    // Data table
+    let table_id = format!("{}_table", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📋 Data Table\\\"]\n", content_id, table_id));
+    buf.push_str(&format!("  class {} table\n", table_id));
+    
+    // Table headers
+    let headers_id = format!("{}_headers", table_id);
+    buf.push_str(&format!("  {} --> {}[\\\"☑️ Select All | Name | Status | Created | Actions\\\"]\n", table_id, headers_id));
+    buf.push_str(&format!("  class {} table\n", headers_id));
+    
+    // Table rows with actions
+    let rows_id = format!("{}_rows", table_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📄 Data Rows\\\"]\n", table_id, rows_id));
+    buf.push_str(&format!("  class {} table\n", rows_id));
+    
+    // Row actions
+    let row_actions_id = format!("{}_row_actions", rows_id);
+    buf.push_str(&format!("  {} --> {}[\\\"👁️ View | ✏️ Edit | 🗑️ Delete\\\"]\n", rows_id, row_actions_id));
+    buf.push_str(&format!("  class {} button\n", row_actions_id));
+    
+    // Pagination
+    let pagination_id = format!("{}_pagination", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"⏮️ ⏪ Page 1 of 10 ⏩ ⏭️\\\"]\n", content_id, pagination_id));
+    buf.push_str(&format!("  class {} navigation\n", pagination_id));
+}
+
+// Generate form page content for create/edit
+fn generate_form_page_content(buf: &mut String, content_id: &str, page_type: &str, module: &str, page: &str) {
+    let action_label = if page_type == "create" { "Create New" } else { "Edit Existing" };
+    
+    // Form container
+    let form_id = format!("{}_form", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📝 {} Form\\\"]\n", content_id, form_id, action_label));
+    buf.push_str(&format!("  class {} form\n", form_id));
+    
+    // Form sections
+    generate_form_fields(buf, &form_id, module, page_type);
+    
+    // Form actions
+    let form_actions_id = format!("{}_actions", form_id);
+    buf.push_str(&format!("  {} --> {}[\\\"⚡ Form Actions\\\"]\n", form_id, form_actions_id));
+    buf.push_str(&format!("  class {} form\n", form_actions_id));
+    
+    let save_btn_id = format!("{}_save_btn", form_actions_id);
+    buf.push_str(&format!("  {} --> {}[\\\"💾 Save Changes\\\"]\n", form_actions_id, save_btn_id));
+    buf.push_str(&format!("  class {} button\n", save_btn_id));
+    
+    let cancel_btn_id = format!("{}_cancel_btn", form_actions_id);
+    buf.push_str(&format!("  {} --> {}[\\\"❌ Cancel\\\"]\n", form_actions_id, cancel_btn_id));
+    buf.push_str(&format!("  class {} button\n", cancel_btn_id));
+    
+    if page_type == "edit" {
+        let delete_btn_id = format!("{}_delete_btn", form_actions_id);
+        buf.push_str(&format!("  {} --> {}[\\\"🗑️ Delete Record\\\"]\n", form_actions_id, delete_btn_id));
+        buf.push_str(&format!("  class {} button\n", delete_btn_id));
+    }
+    
+    // Validation messages
+    let validation_id = format!("{}_validation", form_id);
+    buf.push_str(&format!("  {} --> {}[\\\"⚠️ Validation Messages\\\"]\n", form_id, validation_id));
+    buf.push_str(&format!("  class {} notification\n", validation_id));
+}
+
+// Generate form fields based on common patterns
+fn generate_form_fields(buf: &mut String, form_id: &str, module: &str, page_type: &str) {
+    // Basic info section
+    let basic_section_id = format!("{}_basic", form_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📋 Basic Information\\\"]\n", form_id, basic_section_id));
+    buf.push_str(&format!("  class {} form\n", basic_section_id));
+    
+    // Common fields
+    let name_field_id = format!("{}_name", basic_section_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📝 Name/Title*\\\"]\n", basic_section_id, name_field_id));
+    buf.push_str(&format!("  class {} input\n", name_field_id));
+    
+    let desc_field_id = format!("{}_description", basic_section_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📄 Description\\\"]\n", basic_section_id, desc_field_id));
+    buf.push_str(&format!("  class {} input\n", desc_field_id));
+    
+    let status_field_id = format!("{}_status", basic_section_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📊 Status ▼\\\"]\n", basic_section_id, status_field_id));
+    buf.push_str(&format!("  class {} dropdown\n", status_field_id));
+    
+    // Advanced section
+    let advanced_section_id = format!("{}_advanced", form_id);
+    buf.push_str(&format!("  {} --> {}[\\\"🔧 Advanced Settings\\\"]\n", form_id, advanced_section_id));
+    buf.push_str(&format!("  class {} form\n", advanced_section_id));
+    
+    let tags_field_id = format!("{}_tags", advanced_section_id);
+    buf.push_str(&format!("  {} --> {}[\\\"🏷️ Tags (comma separated)\\\"]\n", advanced_section_id, tags_field_id));
+    buf.push_str(&format!("  class {} input\n", tags_field_id));
+    
+    let category_field_id = format!("{}_category", advanced_section_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📁 Category ▼\\\"]\n", advanced_section_id, category_field_id));
+    buf.push_str(&format!("  class {} dropdown\n", category_field_id));
+    
+    // File uploads if applicable
+    let upload_section_id = format!("{}_uploads", form_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📎 File Uploads\\\"]\n", form_id, upload_section_id));
+    buf.push_str(&format!("  class {} form\n", upload_section_id));
+    
+    let file_input_id = format!("{}_files", upload_section_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📁 Choose Files... | Drag & Drop\\\"]\n", upload_section_id, file_input_id));
+    buf.push_str(&format!("  class {} input\n", file_input_id));
+}
+
+// Generate detail page content
+fn generate_detail_page_content(buf: &mut String, content_id: &str, module: &str, page: &str, pmeta: &PageMeta) {
+    // Detail header with quick actions
+    let detail_header_id = format!("{}_detail_header", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📋 Record Details\\\"]\n", content_id, detail_header_id));
+    buf.push_str(&format!("  class {} contentSection\n", detail_header_id));
+    
+    let quick_actions_id = format!("{}_quick_actions", detail_header_id);
+    buf.push_str(&format!("  {} --> {}[\\\"✏️ Edit | 🗑️ Delete | 📤 Export\\\"]\n", detail_header_id, quick_actions_id));
+    buf.push_str(&format!("  class {} button\n", quick_actions_id));
+    
+    // Information sections
+    let info_section_id = format!("{}_info", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📊 Information Tabs\\\"]\n", content_id, info_section_id));
+    buf.push_str(&format!("  class {} navigation\n", info_section_id));
+    
+    // Tab contents
+    let general_tab_id = format!("{}_general_tab", info_section_id);
+    buf.push_str(&format!("  {} --> {}[\\\"• General Info\\n• Status & Metadata\\n• Creation Date\\n• Last Modified\\\"]\n", info_section_id, general_tab_id));
+    buf.push_str(&format!("  class {} contentSection\n", general_tab_id));
+    
+    let related_tab_id = format!("{}_related_tab", info_section_id);
+    buf.push_str(&format!("  {} --> {}[\\\"• Related Records\\n• References\\n• Dependencies\\\"]\n", info_section_id, related_tab_id));
+    buf.push_str(&format!("  class {} contentSection\n", related_tab_id));
+    
+    let history_tab_id = format!("{}_history_tab", info_section_id);
+    buf.push_str(&format!("  {} --> {}[\\\"• Change History\\n• Activity Log\\n• Version Timeline\\\"]\n", info_section_id, history_tab_id));
+    buf.push_str(&format!("  class {} table\n", history_tab_id));
+}
+
+// Generate other page types (simplified for space)
+fn generate_delete_page_content(buf: &mut String, content_id: &str, module: &str, page: &str) {
+    let warning_id = format!("{}_warning", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"⚠️ Deletion Warning\\nThis action cannot be undone!\\\"]\n", content_id, warning_id));
+    buf.push_str(&format!("  class {} notification\n", warning_id));
+    
+    let confirm_id = format!("{}_confirm", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"🗑️ Confirm Delete | ❌ Cancel\\\"]\n", content_id, confirm_id));
+    buf.push_str(&format!("  class {} button\n", confirm_id));
+}
+
+fn generate_search_page_content(buf: &mut String, content_id: &str, module: &str, page: &str) {
+    let search_form_id = format!("{}_search_form", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"🔍 Advanced Search Form\\\"]\n", content_id, search_form_id));
+    buf.push_str(&format!("  class {} form\n", search_form_id));
+    
+    let results_id = format!("{}_results", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📋 Search Results\\\"]\n", content_id, results_id));
+    buf.push_str(&format!("  class {} table\n", results_id));
+}
+
+fn generate_dashboard_page_content(buf: &mut String, content_id: &str, _module: &str, _page: &str) {
+    let widgets_id = format!("{}_widgets", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📊 Dashboard Widgets\\\"]\n", content_id, widgets_id));
+    buf.push_str(&format!("  class {} contentSection\n", widgets_id));
+    
+    let charts_id = format!("{}_charts", widgets_id);
+    buf.push_str(&format!("  {} --> {}[\\\"📈 Charts & Graphs\\\"]\n", widgets_id, charts_id));
+    buf.push_str(&format!("  class {} table\n", charts_id));
+}
+
+fn generate_settings_page_content(buf: &mut String, content_id: &str, _module: &str, _page: &str) {
+    let settings_form_id = format!("{}_settings_form", content_id);
+    buf.push_str(&format!("  {} --> {}[\\\"⚙️ Configuration Form\\\"]\n", content_id, settings_form_id));
+    buf.push_str(&format!("  class {} form\n", settings_form_id));
+}
+
+fn generate_general_page_content(buf: &mut String, content_id: &str, _module: &str, page: &str, pmeta: &PageMeta) {
+    let content_area_id = format!("{}_content_area", content_id);
+    let page_desc_fallback = format!("{} content area", page);
+    let page_desc = pmeta.notes.as_ref().unwrap_or(&page_desc_fallback);
+    buf.push_str(&format!("  {} --> {}[\\\"📄 {}\\\"]\n", content_id, content_area_id, page_desc));
+    buf.push_str(&format!("  class {} contentSection\n", content_area_id));
+}
+
+// Generate footer actions
+fn generate_footer_actions(buf: &mut String, footer_id: &str, page_type: &str, _module: &str, _page: &str) {
+    let actions_id = format!("{}_actions", footer_id);
+    buf.push_str(&format!("  {} --> {}[\\\"⚡ Page Actions\\\"]\n", footer_id, actions_id));
+    buf.push_str(&format!("  class {} button\n", actions_id));
+    
+    // Context-sensitive actions
+    match page_type {
+        "list" => {
+            buf.push_str(&format!("  {} --> {}[\\\"📤 Export All | 📊 Generate Report\\\"]\n", actions_id, format!("{}_export_actions", actions_id)));
+        }
+        "detail" => {
+            buf.push_str(&format!("  {} --> {}[\\\"📧 Share | 📋 Copy Link | 🖨️ Print\\\"]\n", actions_id, format!("{}_share_actions", actions_id)));
+        }
+        "create" | "edit" => {
+            buf.push_str(&format!("  {} --> {}[\\\"💾 Save Draft | 🔄 Reset Form\\\"]\n", actions_id, format!("{}_form_actions", actions_id)));
+        }
+        _ => {
+            buf.push_str(&format!("  {} --> {}[\\\"🔄 Refresh | 📊 Analytics\\\"]\n", actions_id, format!("{}_general_actions", actions_id)));
+        }
+    }
+}
+
+// Check if page type should have sidebar
+fn has_sidebar(page_type: &str) -> bool {
+    matches!(page_type, "list" | "dashboard" | "settings")
+}
+
+// Generate sidebar elements
+fn generate_sidebar_elements(buf: &mut String, sidebar_id: &str, page_type: &str) {
+    match page_type {
+        "list" => {
+            let filters_id = format!("{}_filters", sidebar_id);
+            buf.push_str(&format!("  {} --> {}[\\\"🔧 Quick Filters\\n• Active Items\\n• Recent\\n• Favorites\\\"]\n", sidebar_id, filters_id));
+            buf.push_str(&format!("  class {} form\n", filters_id));
+        }
+        "dashboard" => {
+            let widgets_id = format!("{}_widget_controls", sidebar_id);
+            buf.push_str(&format!("  {} --> {}[\\\"📊 Widget Controls\\n• Add Widget\\n• Layout Settings\\n• Data Sources\\\"]\n", sidebar_id, widgets_id));
+            buf.push_str(&format!("  class {} form\n", widgets_id));
+        }
+        "settings" => {
+            let nav_id = format!("{}_settings_nav", sidebar_id);
+            buf.push_str(&format!("  {} --> {}[\\\"⚙️ Settings Navigation\\n• General\\n• Security\\n• Notifications\\n• Advanced\\\"]\n", sidebar_id, nav_id));
+            buf.push_str(&format!("  class {} navigation\n", nav_id));
+        }
+        _ => {}
+    }
+}
+
+// Generate detailed subpage structure
+fn generate_detailed_subpage_structure(
+    buf: &mut String,
+    _module: &str,
+    parent_page: &str,
+    subpage: &str,
+    sid: &str,
+    smeta: &PageMeta,
+    parent_id: &str
+) -> Result<(), String> {
+    let subpage_type = detect_page_type(subpage, smeta);
+    let subpage_title_fallback = subpage.to_string();
+    let subpage_title = smeta.title.as_ref().unwrap_or(&subpage_title_fallback);
+    let route = smeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default();
+    let status_badge = smeta.status.as_ref().map(|s| format!(" [{}]", s)).unwrap_or_default();
+    
+    // Subpage container with detailed info
+    buf.push_str(&format!("  {} --> {}[\\\"📑 {} Subpage{}{}\\nType: {}\\\"]\n", 
+        parent_id, sid, subpage_title, status_badge, route, subpage_type));
+    buf.push_str(&format!("  class {} contentSection\n", sid));
+    
+    // Subpage specific content based on type
+    match subpage_type.as_str() {
+        "create" => {
+            let form_id = format!("{}_create_form", sid);
+            buf.push_str(&format!("  {} --> {}[\\\"📝 Create Form\\n• Input Fields\\n• Validation\\n• Submit Button\\\"]\n", sid, form_id));
+            buf.push_str(&format!("  class {} form\n", form_id));
+            
+            let create_actions_id = format!("{}_create_actions", form_id);
+            buf.push_str(&format!("  {} --> {}[\\\"💾 Save | ❌ Cancel | 🔄 Reset\\\"]\n", form_id, create_actions_id));
+            buf.push_str(&format!("  class {} button\n", create_actions_id));
+        }
+        "edit" => {
+            let edit_form_id = format!("{}_edit_form", sid);
+            buf.push_str(&format!("  {} --> {}[\\\"✏️ Edit Form\\n• Pre-filled Fields\\n• Change Detection\\n• Save Button\\\"]\n", sid, edit_form_id));
+            buf.push_str(&format!("  class {} form\n", edit_form_id));
+            
+            let edit_actions_id = format!("{}_edit_actions", edit_form_id);
+            buf.push_str(&format!("  {} --> {}[\\\"💾 Update | ❌ Cancel | 🗑️ Delete\\\"]\n", edit_form_id, edit_actions_id));
+            buf.push_str(&format!("  class {} button\n", edit_actions_id));
+        }
+        "list" => {
+            let list_table_id = format!("{}_list_table", sid);
+            buf.push_str(&format!("  {} --> {}[\\\"📋 Data Table\\n• Headers\\n• Sortable Columns\\n• Row Actions\\\"]\n", sid, list_table_id));
+            buf.push_str(&format!("  class {} table\n", list_table_id));
+            
+            let list_controls_id = format!("{}_list_controls", sid);
+            buf.push_str(&format!("  {} --> {}[\\\"🔍 Search | 📊 Filter | ➕ Add New\\\"]\n", sid, list_controls_id));
+            buf.push_str(&format!("  class {} form\n", list_controls_id));
+        }
+        "detail" | "view" | "show" => {
+            let detail_info_id = format!("{}_detail_info", sid);
+            buf.push_str(&format!("  {} --> {}[\\\"📊 Detail View\\n• Field Labels\\n• Data Values\\n• Related Info\\\"]\n", sid, detail_info_id));
+            buf.push_str(&format!("  class {} contentSection\n", detail_info_id));
+            
+            let detail_actions_id = format!("{}_detail_actions", sid);
+            buf.push_str(&format!("  {} --> {}[\\\"✏️ Edit | 🗑️ Delete | 📤 Export | 📧 Share\\\"]\n", sid, detail_actions_id));
+            buf.push_str(&format!("  class {} button\n", detail_actions_id));
+        }
+        "delete" => {
+            let delete_warning_id = format!("{}_delete_warning", sid);
+            buf.push_str(&format!("  {} --> {}[\\\"⚠️ Deletion Warning\\n• Impact Assessment\\n• Confirmation Required\\\"]\n", sid, delete_warning_id));
+            buf.push_str(&format!("  class {} notification\n", delete_warning_id));
+            
+            let delete_confirm_id = format!("{}_delete_confirm", sid);
+            buf.push_str(&format!("  {} --> {}[\\\"🗑️ Confirm Delete | ❌ Cancel\\\"]\n", sid, delete_confirm_id));
+            buf.push_str(&format!("  class {} button\n", delete_confirm_id));
+        }
+        _ => {
+            // Generic subpage content
+            let generic_content_id = format!("{}_content", sid);
+            buf.push_str(&format!("  {} --> {}[\\\"📄 Content Area\\n• Main Content\\n• Interactive Elements\\\"]\n", sid, generic_content_id));
+            buf.push_str(&format!("  class {} contentSection\n", generic_content_id));
+        }
+    }
+    
+    // Add navigation back to parent
+    let back_nav_id = format!("{}_back_nav", sid);
+    buf.push_str(&format!("  {} --> {}[\\\"← Back to {}\\\"]\n", sid, back_nav_id, parent_page));
+    buf.push_str(&format!("  class {} navigation\n", back_nav_id));
+    buf.push_str(&format!("  {} -.->|navigate| {}\n", back_nav_id, parent_id));
+    
+    Ok(())
+}
+
+// Generate modal flows and interactions
+fn generate_modal_flows(buf: &mut String, page_id: &str, page_type: &str, _module: &str, _page: &str) {
+    match page_type {
+        "list" => {
+            // Bulk actions confirmation modal
+            let bulk_modal_id = format!("{}_bulk_modal", page_id);
+            buf.push_str(&format!("  {} -.->|bulk action| {}[\\\"❓ Bulk Action Confirmation\\nProcess N selected items?\\\"]\n", page_id, bulk_modal_id));
+            buf.push_str(&format!("  class {} modal\n", bulk_modal_id));
+            
+            let bulk_confirm_id = format!("{}_bulk_confirm", bulk_modal_id);
+            buf.push_str(&format!("  {} --> {}[\\\"✅ Confirm | ❌ Cancel\\\"]\n", bulk_modal_id, bulk_confirm_id));
+            buf.push_str(&format!("  class {} button\n", bulk_confirm_id));
+        }
+        "create" | "edit" => {
+            // Unsaved changes modal
+            let unsaved_modal_id = format!("{}_unsaved_modal", page_id);
+            buf.push_str(&format!("  {} -.->|navigate away| {}[\\\"⚠️ Unsaved Changes\\nYou have unsaved changes. Continue?\\\"]\n", page_id, unsaved_modal_id));
+            buf.push_str(&format!("  class {} modal\n", unsaved_modal_id));
+            
+            let unsaved_actions_id = format!("{}_unsaved_actions", unsaved_modal_id);
+            buf.push_str(&format!("  {} --> {}[\\\"💾 Save & Continue | ❌ Discard | 🔙 Stay\\\"]\n", unsaved_modal_id, unsaved_actions_id));
+            buf.push_str(&format!("  class {} button\n", unsaved_actions_id));
+        }
+        "delete" => {
+            // Final deletion confirmation
+            let delete_modal_id = format!("{}_delete_modal", page_id);
+            buf.push_str(&format!("  {} -.->|delete confirm| {}[\\\"🗑️ Final Confirmation\\nType 'DELETE' to confirm\\\"]\n", page_id, delete_modal_id));
+            buf.push_str(&format!("  class {} modal\n", delete_modal_id));
+        }
+        _ => {
+            // Generic loading modal
+            let loading_modal_id = format!("{}_loading_modal", page_id);
+            buf.push_str(&format!("  {} -.->|async action| {}[\\\"⏳ Loading...\\nPlease wait\\\"]\n", page_id, loading_modal_id));
+            buf.push_str(&format!("  class {} loading\n", loading_modal_id));
+        }
+    }
+}
+
+// Enhanced detailed page Mermaid generation with UI elements
+async fn generate_detailed_page_mermaid_html(module: String, page: String) -> Result<String, String> {
     use std::fs;
     let root = std::path::PathBuf::from("design-assets");
     let pdir = root.join(&module).join("pages").join(&page);
     if !pdir.exists() { return Err("頁面不存在".into()); }
-    let sp = pdir.join("subpages");
 
     let mut buf = String::new();
-    buf.push_str("flowchart TD\n");
-    buf.push_str("  classDef mainModule fill:#e8f5e8,stroke:#4caf50,stroke-width:3px\n");
-    buf.push_str("  classDef pageLevel fill:#f1f8e9,stroke:#8bc34a,stroke-width:2px\n");
-    buf.push_str("  classDef componentLevel fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px\n");
-    buf.push_str("  classDef decision fill:#fff8e1,stroke:#ffc107,stroke-width:2px\n");
-    buf.push_str("  classDef toolbar fill:#e3f2fd,stroke:#2196f3,stroke-width:2px\n");
-    buf.push_str("  classDef form fill:#fff3e0,stroke:#ff9800,stroke-width:2px\n");
-    buf.push_str("  classDef table fill:#fce4ec,stroke:#e91e63,stroke-width:2px\n");
+    let mermaid_settings = get_mermaid_settings();
+    buf.push_str(&format!("flowchart {}\n", mermaid_settings.layout_direction));
+    
+    // Enhanced class definitions for detailed UI elements
+    buf.push_str("  classDef pageContainer fill:#e8f5e8,stroke:#4caf50,stroke-width:3px\n");
+    buf.push_str("  classDef headerSection fill:#e3f2fd,stroke:#2196f3,stroke-width:2px\n");
+    buf.push_str("  classDef contentSection fill:#f1f8e9,stroke:#8bc34a,stroke-width:2px\n");
+    buf.push_str("  classDef footerSection fill:#fce4ec,stroke:#e91e63,stroke-width:2px\n");
+    buf.push_str("  classDef navigation fill:#fff3e0,stroke:#ff9800,stroke-width:2px\n");
+    buf.push_str("  classDef button fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px\n");
+    buf.push_str("  classDef form fill:#fff8e1,stroke:#ffc107,stroke-width:2px\n");
+    buf.push_str("  classDef input fill:#e8f5e8,stroke:#4caf50,stroke-width:1px\n");
+    buf.push_str("  classDef modal fill:#ffebee,stroke:#f44336,stroke-width:2px\n");
+    buf.push_str("  classDef table fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px\n");
+    buf.push_str("  classDef sidebar fill:#f9fbe7,stroke:#827717,stroke-width:2px\n");
+    buf.push_str("  classDef dropdown fill:#fff3e0,stroke:#ff5722,stroke-width:2px\n");
+    buf.push_str("  classDef notification fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px\n");
+    buf.push_str("  classDef loading fill:#f3e5f5,stroke:#673ab7,stroke-width:2px\n");
 
     let mid = sanitize_id(&module);
     let pid = format!("{}_{}", mid, sanitize_id(&page));
     let pmeta = read_page_meta(&pdir);
-    let p_label = if pmeta.status.is_some() || pmeta.route.is_some() {
-        format!("/{}/{}{}{}", module, page, pmeta.status.as_ref().map(|s| format!(" ({})", s)).unwrap_or_default(), pmeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default())
-    } else { format!("/{}/{}", module, page) };
-    buf.push_str(&format!("  {}[\\\"{}\\\"]\n", pid, p_label));
-    let pclazz = pmeta.class.clone().unwrap_or_else(|| "pageLevel".into());
-    buf.push_str(&format!("  class {} {}\n", pid, pclazz));
+    
+    // Generate detailed page structure
+    generate_detailed_page_structure(&mut buf, &module, &page, &pid, &pmeta, &pdir)?;
 
-    // 子頁
+    // Enhanced subpages with detailed UI elements
+    let sp = pdir.join("subpages");
     if sp.exists() {
         if let Ok(sentries) = std::fs::read_dir(&sp) {
             for se in sentries.flatten() {
-                let spath = se.path(); if !spath.is_dir() { continue; }
+                let spath = se.path(); 
+                if !spath.is_dir() { continue; }
                 let sslug = spath.file_name().and_then(|s| s.to_str()).unwrap_or("");
                 let sid = format!("{}_{}", pid, sanitize_id(sslug));
                 let smeta = read_page_meta(&spath);
-                let s_label = if smeta.status.is_some() || smeta.route.is_some() {
-                    format!("/{}/{}/{}{}{}", module, page, sslug, smeta.status.as_ref().map(|s| format!(" ({})", s)).unwrap_or_default(), smeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default())
-                } else { format!("/{}/{}/{}", module, page, sslug) };
-                buf.push_str(&format!("  {} --> {}[\\\"{}\\\"]\n", pid, sid, s_label));
-                let sclazz = smeta.class.clone().unwrap_or_else(|| "componentLevel".into());
-                buf.push_str(&format!("  class {} {}\n", sid, sclazz));
+                
+                // Generate detailed subpage structure
+                generate_detailed_subpage_structure(&mut buf, &module, &page, sslug, &sid, &smeta, &pid)?;
             }
         }
     }
-    // links
+    
+    // Enhanced navigation links with interaction details
     if let Some(links) = pmeta.links.clone() {
         for lk in links.iter() {
             let (tid, label) = resolve_link_id(lk, &module, &page);
             if let Some(tid) = tid {
-                if let Some(label) = label { buf.push_str(&format!("  {} -.->|{}| {}\n", pid, label, tid)); }
-                else { buf.push_str(&format!("  {} -.-> {}\n", pid, tid)); }
+                let link_label = label.unwrap_or_else(|| "Navigate".to_string());
+                buf.push_str(&format!("  {} -.->|🔗 {}| {}[\\\"🎯 {}\\\"]\n", pid, link_label, tid, lk.to));
+                buf.push_str(&format!("  class {} navigation\n", tid));
             }
         }
     }
@@ -1972,13 +2645,509 @@ pub async fn generate_page_mermaid_html(module: String, page: String) -> Result<
     std::fs::create_dir_all(mmd_path.parent().unwrap()).map_err(|e| e.to_string())?;
     fs::write(&mmd_path, buf).map_err(|e| e.to_string())?;
     let content = std::fs::read_to_string(&mmd_path).map_err(|e| e.to_string())?;
+    let mermaid_settings = get_mermaid_settings();
     let html = format!(r#"<!DOCTYPE html>
 <html lang=\"zh-TW\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Page Sitemap - {module}/{page}</title>
-  <script type=\"module\">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
-</head><body><h1>Page Sitemap - {module}/{page}</h1><div class=\"mermaid\">{graph}</div></body></html>"#, module=module, page=page, graph=content);
+  <script type=\"module\">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({{ startOnLoad: true, theme: '{}' }});</script>
+</head><body><h1>Page Sitemap - {module}/{page}</h1><div class=\"mermaid\">{graph}</div></body></html>"#, mermaid_settings.theme, module=module, page=page, graph=content);
     let html_path = std::path::PathBuf::from("ai-docs").join(format!("page-{}-{}-sitemap.html", sanitize_id(&module), sanitize_id(&page)));
     fs::write(&html_path, html).map_err(|e| e.to_string())?;
     Ok(html_path.to_string_lossy().to_string())
+}
+
+// Sitemap export/import functionality
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SitemapExport {
+    pub project_name: String,
+    pub export_timestamp: String,
+    pub modules: Vec<ModuleExport>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ModuleExport {
+    pub name: String,
+    pub description: String,
+    pub pages: Vec<PageExport>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PageExport {
+    pub slug: String,
+    pub title: Option<String>,
+    pub status: Option<String>,
+    pub route: Option<String>,
+    pub notes: Option<String>,
+    pub subpages: Vec<SubpageExport>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubpageExport {
+    pub slug: String,
+    pub title: Option<String>,
+    pub status: Option<String>,
+    pub route: Option<String>,
+    pub notes: Option<String>,
+}
+
+#[tauri::command]
+pub async fn export_sitemap() -> Result<String, String> {
+    use std::fs;
+    
+    let project = get_or_init_default_project().await?;
+    let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S").to_string();
+    
+    let root = std::path::PathBuf::from("design-assets");
+    let mut modules = Vec::new();
+    
+    if let Ok(entries) = fs::read_dir(&root) {
+        for entry in entries.flatten() {
+            let module_path = entry.path();
+            if !module_path.is_dir() { continue; }
+            
+            let module_name = module_path.file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
+            
+            let pages_dir = module_path.join("pages");
+            let mut pages = Vec::new();
+            
+            if let Ok(page_entries) = fs::read_dir(&pages_dir) {
+                for page_entry in page_entries.flatten() {
+                    let page_path = page_entry.path();
+                    if !page_path.is_dir() { continue; }
+                    
+                    let page_slug = page_path.file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    
+                    // Read page meta
+                    let meta_path = page_path.join("meta.json");
+                    let (title, status, route, notes) = if meta_path.exists() {
+                        if let Ok(meta_content) = fs::read_to_string(&meta_path) {
+                            if let Ok(meta) = serde_json::from_str::<serde_json::Value>(&meta_content) {
+                                (
+                                    meta.get("title").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                    meta.get("status").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                    meta.get("route").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                    meta.get("notes").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                )
+                            } else { (None, None, None, None) }
+                        } else { (None, None, None, None) }
+                    } else { (None, None, None, None) };
+                    
+                    // Read subpages
+                    let mut subpages = Vec::new();
+                    let subpages_dir = page_path.join("subpages");
+                    if let Ok(sub_entries) = fs::read_dir(&subpages_dir) {
+                        for sub_entry in sub_entries.flatten() {
+                            let sub_path = sub_entry.path();
+                            if !sub_path.is_dir() { continue; }
+                            
+                            let sub_slug = sub_path.file_name()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("")
+                                .to_string();
+                            
+                            let sub_meta_path = sub_path.join("meta.json");
+                            let (sub_title, sub_status, sub_route, sub_notes) = if sub_meta_path.exists() {
+                                if let Ok(sub_meta_content) = fs::read_to_string(&sub_meta_path) {
+                                    if let Ok(sub_meta) = serde_json::from_str::<serde_json::Value>(&sub_meta_content) {
+                                        (
+                                            sub_meta.get("title").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                            sub_meta.get("status").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                            sub_meta.get("route").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                            sub_meta.get("notes").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                        )
+                                    } else { (None, None, None, None) }
+                                } else { (None, None, None, None) }
+                            } else { (None, None, None, None) };
+                            
+                            subpages.push(SubpageExport {
+                                slug: sub_slug,
+                                title: sub_title,
+                                status: sub_status,
+                                route: sub_route,
+                                notes: sub_notes,
+                            });
+                        }
+                    }
+                    
+                    pages.push(PageExport {
+                        slug: page_slug,
+                        title,
+                        status,
+                        route,
+                        notes,
+                        subpages,
+                    });
+                }
+            }
+            
+            modules.push(ModuleExport {
+                name: module_name,
+                description: "Exported module".to_string(),
+                pages,
+            });
+        }
+    }
+    
+    let export = SitemapExport {
+        project_name: project.name,
+        export_timestamp: timestamp.clone(),
+        modules,
+    };
+    
+    let export_json = serde_json::to_string_pretty(&export)
+        .map_err(|e| format!("序列化導出數據失敗: {}", e))?;
+    
+    let export_path = std::path::PathBuf::from("ai-docs").join(format!("sitemap-export-{}.json", timestamp));
+    std::fs::create_dir_all(export_path.parent().unwrap()).map_err(|e| e.to_string())?;
+    fs::write(&export_path, export_json).map_err(|e| format!("寫入導出檔案失敗: {}", e))?;
+    
+    Ok(export_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn import_sitemap(file_path: String) -> Result<String, String> {
+    use std::fs;
+    
+    let import_content = fs::read_to_string(&file_path)
+        .map_err(|e| format!("讀取導入檔案失敗: {}", e))?;
+    
+    let import_data: SitemapExport = serde_json::from_str(&import_content)
+        .map_err(|e| format!("解析導入數據失敗: {}", e))?;
+    
+    let root = std::path::PathBuf::from("design-assets");
+    let mut imported_modules = 0;
+    let mut imported_pages = 0;
+    let mut imported_subpages = 0;
+    
+    for module in import_data.modules {
+        let module_path = root.join(&module.name);
+        let pages_path = module_path.join("pages");
+        
+        // Create module structure
+        fs::create_dir_all(&pages_path).map_err(|e| format!("創建模組目錄失敗: {}", e))?;
+        imported_modules += 1;
+        
+        for page in module.pages {
+            let page_path = pages_path.join(&page.slug);
+            
+            // Create page directories
+            fs::create_dir_all(&page_path.join("screenshots")).map_err(|e| e.to_string())?;
+            fs::create_dir_all(&page_path.join("html")).map_err(|e| e.to_string())?;
+            fs::create_dir_all(&page_path.join("css")).map_err(|e| e.to_string())?;
+            
+            // Create page meta.json
+            let page_meta = serde_json::json!({
+                "slug": page.slug,
+                "title": page.title.unwrap_or_else(|| page.slug.clone()),
+                "status": page.status.unwrap_or_else(|| "active".to_string()),
+                "route": page.route.unwrap_or_else(|| format!("/{}", page.slug)),
+                "notes": page.notes.unwrap_or_default()
+            });
+            
+            fs::write(
+                page_path.join("meta.json"),
+                serde_json::to_string_pretty(&page_meta).unwrap()
+            ).map_err(|e| e.to_string())?;
+            imported_pages += 1;
+            
+            // Create subpages
+            if !page.subpages.is_empty() {
+                let subpages_path = page_path.join("subpages");
+                fs::create_dir_all(&subpages_path).map_err(|e| e.to_string())?;
+                
+                for subpage in page.subpages {
+                    let sub_path = subpages_path.join(&subpage.slug);
+                    
+                    // Create subpage directories
+                    fs::create_dir_all(&sub_path.join("screenshots")).map_err(|e| e.to_string())?;
+                    fs::create_dir_all(&sub_path.join("html")).map_err(|e| e.to_string())?;
+                    fs::create_dir_all(&sub_path.join("css")).map_err(|e| e.to_string())?;
+                    
+                    // Create subpage meta.json
+                    let sub_meta = serde_json::json!({
+                        "slug": subpage.slug,
+                        "title": subpage.title.unwrap_or_else(|| subpage.slug.clone()),
+                        "status": subpage.status.unwrap_or_else(|| "active".to_string()),
+                        "route": subpage.route.unwrap_or_else(|| format!("/{}/{}", page.slug, subpage.slug)),
+                        "notes": subpage.notes.unwrap_or_default()
+                    });
+                    
+                    fs::write(
+                        sub_path.join("meta.json"),
+                        serde_json::to_string_pretty(&sub_meta).unwrap()
+                    ).map_err(|e| e.to_string())?;
+                    imported_subpages += 1;
+                }
+            }
+        }
+    }
+    
+    Ok(format!("導入完成：{} 個模組，{} 個頁面，{} 個子頁", imported_modules, imported_pages, imported_subpages))
+}
+
+// Sitemap analytics and metrics
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SitemapAnalytics {
+    pub project_name: String,
+    pub total_modules: usize,
+    pub total_pages: usize,
+    pub total_subpages: usize,
+    pub average_pages_per_module: f64,
+    pub modules_with_deep_structure: Vec<String>, // modules with 3+ levels
+    pub orphaned_pages: Vec<String>, // pages without proper meta or routing
+    pub status_distribution: std::collections::HashMap<String, usize>,
+    pub deepest_module: Option<String>,
+    pub max_depth: usize,
+    pub coverage_metrics: CoverageMetrics,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CoverageMetrics {
+    pub pages_with_screenshots: usize,
+    pub pages_with_html: usize,
+    pub pages_with_css: usize,
+    pub completion_percentage: f64,
+    pub modules_completion: std::collections::HashMap<String, ModuleCompletion>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ModuleCompletion {
+    pub total_pages: usize,
+    pub pages_with_assets: usize,
+    pub completion_rate: f64,
+}
+
+#[tauri::command]
+pub async fn analyze_sitemap() -> Result<SitemapAnalytics, String> {
+    // Check cache first
+    {
+        let cache = SITEMAP_CACHE.lock().unwrap();
+        if SitemapCache::is_fresh(&cache.analytics, CACHE_DURATION_LONG) {
+            if let Some(cached) = &cache.analytics {
+                return Ok(cached.data.clone());
+            }
+        }
+    }
+
+    // Build analytics from filesystem
+    let result = build_sitemap_analytics_uncached().await?;
+
+    // Cache the result
+    {
+        let mut cache = SITEMAP_CACHE.lock().unwrap();
+        cache.analytics = Some(CachedData {
+            data: result.clone(),
+            timestamp: SystemTime::now(),
+        });
+    }
+
+    Ok(result)
+}
+
+async fn build_sitemap_analytics_uncached() -> Result<SitemapAnalytics, String> {
+    use std::fs;
+    
+    let project = get_or_init_default_project().await?;
+    let root = std::path::PathBuf::from("design-assets");
+    
+    let mut total_modules = 0;
+    let mut total_pages = 0;
+    let mut total_subpages = 0;
+    let mut modules_with_deep_structure = Vec::new();
+    let mut orphaned_pages = Vec::new();
+    let mut status_distribution: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut max_depth = 0;
+    let mut deepest_module: Option<String> = None;
+    
+    let mut pages_with_screenshots = 0;
+    let mut pages_with_html = 0;
+    let mut pages_with_css = 0;
+    let mut modules_completion: std::collections::HashMap<String, ModuleCompletion> = std::collections::HashMap::new();
+    
+    if let Ok(entries) = fs::read_dir(&root) {
+        for entry in entries.flatten() {
+            let module_path = entry.path();
+            if !module_path.is_dir() { continue; }
+            
+            let module_name = module_path.file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
+            
+            total_modules += 1;
+            let mut module_pages = 0;
+            let mut module_pages_with_assets = 0;
+            let mut module_depth = 1; // module level
+            
+            let pages_dir = module_path.join("pages");
+            if let Ok(page_entries) = fs::read_dir(&pages_dir) {
+                for page_entry in page_entries.flatten() {
+                    let page_path = page_entry.path();
+                    if !page_path.is_dir() { continue; }
+                    
+                    let page_slug = page_path.file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    
+                    total_pages += 1;
+                    module_pages += 1;
+                    
+                    // Check for assets
+                    let has_screenshots = !get_files_in_dir(&page_path.join("screenshots")).is_empty();
+                    let has_html = !get_files_in_dir(&page_path.join("html")).is_empty();
+                    let has_css = !get_files_in_dir(&page_path.join("css")).is_empty();
+                    
+                    if has_screenshots { pages_with_screenshots += 1; }
+                    if has_html { pages_with_html += 1; }
+                    if has_css { pages_with_css += 1; }
+                    if has_screenshots || has_html || has_css { module_pages_with_assets += 1; }
+                    
+                    // Check meta and routing
+                    let meta_path = page_path.join("meta.json");
+                    if meta_path.exists() {
+                        if let Ok(meta_content) = fs::read_to_string(&meta_path) {
+                            if let Ok(meta) = serde_json::from_str::<serde_json::Value>(&meta_content) {
+                                let status = meta.get("status")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("unknown");
+                                *status_distribution.entry(status.to_string()).or_insert(0) += 1;
+                                
+                                // Check if route is properly defined
+                                if meta.get("route").is_none() || meta.get("title").is_none() {
+                                    orphaned_pages.push(format!("{}/{}", module_name, page_slug));
+                                }
+                            } else {
+                                orphaned_pages.push(format!("{}/{} (invalid meta)", module_name, page_slug));
+                            }
+                        } else {
+                            orphaned_pages.push(format!("{}/{} (unreadable meta)", module_name, page_slug));
+                        }
+                    } else {
+                        orphaned_pages.push(format!("{}/{} (no meta)", module_name, page_slug));
+                    }
+                    
+                    // Check subpages
+                    let subpages_dir = page_path.join("subpages");
+                    if let Ok(sub_entries) = fs::read_dir(&subpages_dir) {
+                        let mut has_subpages = false;
+                        for sub_entry in sub_entries.flatten() {
+                            let sub_path = sub_entry.path();
+                            if !sub_path.is_dir() { continue; }
+                            
+                            has_subpages = true;
+                            total_subpages += 1;
+                            
+                            // Check subpage assets
+                            let sub_has_screenshots = !get_files_in_dir(&sub_path.join("screenshots")).is_empty();
+                            let sub_has_html = !get_files_in_dir(&sub_path.join("html")).is_empty();
+                            let sub_has_css = !get_files_in_dir(&sub_path.join("css")).is_empty();
+                            
+                            if sub_has_screenshots { pages_with_screenshots += 1; }
+                            if sub_has_html { pages_with_html += 1; }
+                            if sub_has_css { pages_with_css += 1; }
+                            
+                            // Check subpage meta
+                            let sub_meta_path = sub_path.join("meta.json");
+                            if sub_meta_path.exists() {
+                                if let Ok(sub_meta_content) = fs::read_to_string(&sub_meta_path) {
+                                    if let Ok(sub_meta) = serde_json::from_str::<serde_json::Value>(&sub_meta_content) {
+                                        let sub_status = sub_meta.get("status")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("unknown");
+                                        *status_distribution.entry(sub_status.to_string()).or_insert(0) += 1;
+                                    }
+                                }
+                            }
+                        }
+                        if has_subpages {
+                            module_depth = module_depth.max(3); // module -> page -> subpage
+                        }
+                    }
+                }
+            }
+            
+            // Track module completion
+            let completion_rate = if module_pages > 0 {
+                (module_pages_with_assets as f64 / module_pages as f64) * 100.0
+            } else {
+                0.0
+            };
+            
+            modules_completion.insert(module_name.clone(), ModuleCompletion {
+                total_pages: module_pages,
+                pages_with_assets: module_pages_with_assets,
+                completion_rate,
+            });
+            
+            // Track depth and complex modules
+            if module_depth >= 3 {
+                modules_with_deep_structure.push(module_name.clone());
+            }
+            
+            if module_depth > max_depth {
+                max_depth = module_depth;
+                deepest_module = Some(module_name);
+            }
+        }
+    }
+    
+    let average_pages_per_module = if total_modules > 0 {
+        total_pages as f64 / total_modules as f64
+    } else {
+        0.0
+    };
+    
+    let total_potential_assets = total_pages + total_subpages;
+    let completion_percentage = if total_potential_assets > 0 {
+        ((pages_with_screenshots + pages_with_html + pages_with_css) as f64 / (total_potential_assets * 3) as f64) * 100.0
+    } else {
+        0.0
+    };
+    
+    let coverage_metrics = CoverageMetrics {
+        pages_with_screenshots,
+        pages_with_html,
+        pages_with_css,
+        completion_percentage,
+        modules_completion,
+    };
+    
+    Ok(SitemapAnalytics {
+        project_name: project.name,
+        total_modules,
+        total_pages,
+        total_subpages,
+        average_pages_per_module,
+        modules_with_deep_structure,
+        orphaned_pages,
+        status_distribution,
+        deepest_module,
+        max_depth,
+        coverage_metrics,
+    })
+}
+
+fn get_files_in_dir(dir: &std::path::Path) -> Vec<String> {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        entries.filter_map(|entry| {
+            entry.ok().and_then(|e| {
+                let path = e.path();
+                if path.is_file() {
+                    path.file_name().and_then(|name| name.to_str()).map(|s| s.to_string())
+                } else {
+                    None
+                }
+            })
+        }).collect()
+    } else {
+        Vec::new()
+    }
 }
 
 // 導出整包：
@@ -2111,7 +3280,7 @@ pub async fn list_assets(module_name: String) -> Result<AssetList, String> {
         css: Vec::new(),
     };
 
-    let mut read_dir = |sub: &str, vec: &mut Vec<String>| {
+    let read_dir = |sub: &str, vec: &mut Vec<String>| {
         let p = module_dir.join(sub);
         if let Ok(entries) = std::fs::read_dir(&p) {
             for entry in entries.flatten() {
@@ -2212,4 +3381,274 @@ pub async fn unarchive_design_module(module_name: String) -> Result<String, Stri
     std::fs::rename(&archived_path, &target)
         .map_err(|e| format!("還原失敗: {}", e))?;
     Ok(format!("已還原模組至: {}", target.display()))
+}
+
+// ====== Performance Optimization APIs ======
+
+/// Clear all caches - useful for debugging or when file system changes externally
+#[tauri::command]
+pub async fn clear_sitemap_cache() -> Result<String, String> {
+    let mut cache = SITEMAP_CACHE.lock().unwrap();
+    cache.invalidate_all();
+    Ok("All sitemap caches cleared".to_string())
+}
+
+/// Get cache statistics for monitoring
+#[tauri::command]
+pub async fn get_cache_stats() -> Result<serde_json::Value, String> {
+    let cache = SITEMAP_CACHE.lock().unwrap();
+    let stats = serde_json::json!({
+        "module_trees_cached": cache.module_trees.len(),
+        "analytics_cached": cache.analytics.is_some(),
+        "design_modules_cached": cache.design_modules.is_some(),
+        "cache_config": {
+            "short_duration_seconds": CACHE_DURATION_SHORT.as_secs(),
+            "medium_duration_seconds": CACHE_DURATION_MEDIUM.as_secs(),
+            "long_duration_seconds": CACHE_DURATION_LONG.as_secs()
+        }
+    });
+    Ok(stats)
+}
+
+/// Preload cache for a module - useful for improving perceived performance
+#[tauri::command]
+pub async fn preload_module_cache(module_name: String) -> Result<String, String> {
+    // This will populate the cache
+    get_module_tree(module_name.clone()).await?;
+    Ok(format!("Module '{}' cache preloaded", module_name))
+}
+
+/// Batch preload caches for multiple modules
+#[tauri::command]
+pub async fn preload_all_modules_cache() -> Result<String, String> {
+    let modules = get_design_modules().await?;
+    let mut preloaded = 0;
+    
+    for module in modules {
+        if let Ok(_) = get_module_tree(module.name.clone()).await {
+            preloaded += 1;
+        }
+    }
+    
+    Ok(format!("Preloaded cache for {} modules", preloaded))
+}
+
+// ====== Enhanced Detailed Workflow Generation ======
+
+/// Generate comprehensive user workflow diagram showing complete user journeys
+#[tauri::command]
+pub async fn generate_user_workflow_mermaid_html(module: String) -> Result<String, String> {
+    use std::fs;
+    let root = std::path::PathBuf::from("design-assets");
+    let module_dir = root.join(&module);
+    if !module_dir.exists() { return Err("模組不存在".into()); }
+    
+    let mut buf = String::new();
+    let mermaid_settings = get_mermaid_settings();
+    buf.push_str(&format!("flowchart {}\n", mermaid_settings.layout_direction));
+    
+    // Enhanced workflow class definitions
+    buf.push_str("  classDef userEntry fill:#e8f5e8,stroke:#4caf50,stroke-width:3px\n");
+    buf.push_str("  classDef userAction fill:#fff3e0,stroke:#ff9800,stroke-width:2px\n");
+    buf.push_str("  classDef systemResponse fill:#e3f2fd,stroke:#2196f3,stroke-width:2px\n");
+    buf.push_str("  classDef decision fill:#fff8e1,stroke:#ffc107,stroke-width:2px\n");
+    buf.push_str("  classDef errorState fill:#ffebee,stroke:#f44336,stroke-width:2px\n");
+    buf.push_str("  classDef successState fill:#e8f5e8,stroke:#4caf50,stroke-width:2px\n");
+    buf.push_str("  classDef dataFlow fill:#f3e5f5,stroke:#9c27b0,stroke-width:1px,stroke-dasharray: 5 5\n");
+    buf.push_str("  classDef apiCall fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px\n");
+    
+    // Generate comprehensive workflow
+    generate_user_workflow_structure(&mut buf, &module)?;
+    
+    // Write files
+    let mmd_path = std::path::PathBuf::from("ai-docs").join(format!("workflow-{}-user-journey.mmd", sanitize_id(&module)));
+    std::fs::create_dir_all(mmd_path.parent().unwrap()).map_err(|e| e.to_string())?;
+    fs::write(&mmd_path, buf).map_err(|e| e.to_string())?;
+    let content = std::fs::read_to_string(&mmd_path).map_err(|e| e.to_string())?;
+    
+    let html = format!(r#"<!DOCTYPE html>
+<html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>User Workflow - {module} Module</title>
+  <script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({{ startOnLoad: true, theme: '{}', flowchart: {{ htmlLabels: true, curve: 'basis' }} }});</script>
+  <style>body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; }} h1 {{ color: #333; }} .mermaid {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}</style>
+</head><body><h1>📊 User Workflow - {module} Module</h1><p>Complete user journey and interaction flows</p><div class="mermaid">{graph}</div></body></html>"#, mermaid_settings.theme, module=module, graph=content);
+    
+    let html_path = std::path::PathBuf::from("ai-docs").join(format!("workflow-{}-user-journey.html", sanitize_id(&module)));
+    fs::write(&html_path, html).map_err(|e| e.to_string())?;
+    Ok(html_path.to_string_lossy().to_string())
+}
+
+// Generate comprehensive user workflow structure
+fn generate_user_workflow_structure(buf: &mut String, module: &str) -> Result<(), String> {
+    let mid = sanitize_id(module);
+    
+    // User entry point
+    let entry_id = format!("{}_entry", mid);
+    buf.push_str(&format!("  {}[\\\"🚪 User Entry Point\\n• Direct URL\\n• Navigation Menu\\n• Search Result\\\"]\n", entry_id));
+    buf.push_str(&format!("  class {} userEntry\n", entry_id));
+    
+    // Authentication check
+    let auth_check_id = format!("{}_auth_check", mid);
+    buf.push_str(&format!("  {} --> {}{{\\\"🔐 Authentication\\nRequired?\\\"}} \n", entry_id, auth_check_id));
+    buf.push_str(&format!("  class {} decision\n", auth_check_id));
+    
+    // Login flow
+    let login_flow_id = format!("{}_login_flow", mid);
+    buf.push_str(&format!("  {} -->|Yes| {}[\\\"🔑 Login Process\\n• Username/Email Input\\n• Password Input\\n• 2FA if enabled\\n• Remember Me Option\\\"]\n", auth_check_id, login_flow_id));
+    buf.push_str(&format!("  class {} userAction\n", login_flow_id));
+    
+    let auth_api_id = format!("{}_auth_api", mid);
+    buf.push_str(&format!("  {} --> {}[\\\"🔗 Authentication API\\n• Validate Credentials\\n• Generate Session\\n• Set Permissions\\\"]\n", login_flow_id, auth_api_id));
+    buf.push_str(&format!("  class {} apiCall\n", auth_api_id));
+    
+    // Main module entry
+    let module_entry_id = format!("{}_module_entry", mid);
+    buf.push_str(&format!("  {} -->|No| {}\n", auth_check_id, module_entry_id));
+    buf.push_str(&format!("  {} -->|Success| {}\n", auth_api_id, module_entry_id));
+    buf.push_str(&format!("  {}[\\\"🏠 {} Module Landing\\n• Overview Dashboard\\n• Quick Actions\\n• Recent Items\\\"]\n", module_entry_id, module));
+    buf.push_str(&format!("  class {} systemResponse\n", module_entry_id));
+    
+    // Error handling for auth failure
+    let auth_error_id = format!("{}_auth_error", mid);
+    buf.push_str(&format!("  {} -->|Failed| {}[\\\"❌ Authentication Failed\\n• Error Message\\n• Retry Option\\n• Forgot Password\\\"]\n", auth_api_id, auth_error_id));
+    buf.push_str(&format!("  class {} errorState\n", auth_error_id));
+    buf.push_str(&format!("  {} --> {}\n", auth_error_id, login_flow_id));
+    
+    // Main workflow branches
+    generate_workflow_branches(buf, &module_entry_id, module)?;
+    
+    // Data loading and error handling
+    generate_data_flow_patterns(buf, module)?;
+    
+    // User feedback and notifications
+    generate_feedback_patterns(buf, module)?;
+    
+    Ok(())
+}
+
+// Generate main workflow branches for different user actions
+fn generate_workflow_branches(buf: &mut String, entry_id: &str, module: &str) -> Result<(), String> {
+    let mid = sanitize_id(module);
+    
+    // User action decision point
+    let action_decision_id = format!("{}_action_decision", mid);
+    buf.push_str(&format!("  {} --> {}{{\\\"👤 What does user\\nwant to do?\\\"}} \n", entry_id, action_decision_id));
+    buf.push_str(&format!("  class {} decision\n", action_decision_id));
+    
+    // Browse/View workflow
+    let browse_flow_id = format!("{}_browse_flow", mid);
+    buf.push_str(&format!("  {} -->|Browse/View| {}[\\\"👁️ Browse Content\\n• Load List View\\n• Apply Filters\\n• Sort Options\\n• Pagination\\\"]\n", action_decision_id, browse_flow_id));
+    buf.push_str(&format!("  class {} userAction\n", browse_flow_id));
+    
+    let view_detail_id = format!("{}_view_detail", mid);
+    buf.push_str(&format!("  {} --> {}[\\\"📋 View Details\\n• Click on Item\\n• Load Full Info\\n• Related Data\\n• Action Buttons\\\"]\n", browse_flow_id, view_detail_id));
+    buf.push_str(&format!("  class {} systemResponse\n", view_detail_id));
+    
+    // Create workflow
+    let create_flow_id = format!("{}_create_flow", mid);
+    buf.push_str(&format!("  {} -->|Create New| {}[\\\"➕ Create New Item\\n• Open Form\\n• Fill Required Fields\\n• Validate Input\\n• Handle Errors\\\"]\n", action_decision_id, create_flow_id));
+    buf.push_str(&format!("  class {} userAction\n", create_flow_id));
+    
+    let create_validation_id = format!("{}_create_validation", mid);
+    buf.push_str(&format!("  {} --> {}{{\\\"✅ Form Valid?\\\"}} \n", create_flow_id, create_validation_id));
+    buf.push_str(&format!("  class {} decision\n", create_validation_id));
+    
+    let create_success_id = format!("{}_create_success", mid);
+    buf.push_str(&format!("  {} -->|Yes| {}[\\\"💾 Save to Database\\n• Create Record\\n• Update Relationships\\n• Log Activity\\\"]\n", create_validation_id, create_success_id));
+    buf.push_str(&format!("  class {} successState\n", create_success_id));
+    
+    let create_error_id = format!("{}_create_error", mid);
+    buf.push_str(&format!("  {} -->|No| {}[\\\"⚠️ Validation Errors\\n• Highlight Fields\\n• Show Messages\\n• Suggest Fixes\\\"]\n", create_validation_id, create_error_id));
+    buf.push_str(&format!("  class {} errorState\n", create_error_id));
+    buf.push_str(&format!("  {} --> {}\n", create_error_id, create_flow_id));
+    
+    // Edit workflow
+    let edit_flow_id = format!("{}_edit_flow", mid);
+    buf.push_str(&format!("  {} -->|Edit Existing| {}[\\\"✏️ Edit Item\\n• Load Current Data\\n• Pre-fill Form\\n• Track Changes\\n• Auto-save Draft\\\"]\n", action_decision_id, edit_flow_id));
+    buf.push_str(&format!("  class {} userAction\n", edit_flow_id));
+    
+    let edit_validation_id = format!("{}_edit_validation", mid);
+    buf.push_str(&format!("  {} --> {}{{\\\"✅ Changes Valid?\\\"}} \n", edit_flow_id, edit_validation_id));
+    buf.push_str(&format!("  class {} decision\n", edit_validation_id));
+    
+    let update_success_id = format!("{}_update_success", mid);
+    buf.push_str(&format!("  {} -->|Yes| {}[\\\"🔄 Update Database\\n• Save Changes\\n• Update Timestamps\\n• Notify Related Users\\\"]\n", edit_validation_id, update_success_id));
+    buf.push_str(&format!("  class {} successState\n", update_success_id));
+    
+    // Delete workflow
+    let delete_flow_id = format!("{}_delete_flow", mid);
+    buf.push_str(&format!("  {} -->|Delete| {}[\\\"🗑️ Delete Confirmation\\n• Show Impact\\n• Request Confirmation\\n• Type DELETE\\\"]\n", action_decision_id, delete_flow_id));
+    buf.push_str(&format!("  class {} userAction\n", delete_flow_id));
+    
+    let delete_confirm_id = format!("{}_delete_confirm", mid);
+    buf.push_str(&format!("  {} --> {}{{\\\"❓ Confirm Delete?\\\"}} \n", delete_flow_id, delete_confirm_id));
+    buf.push_str(&format!("  class {} decision\n", delete_confirm_id));
+    
+    let delete_success_id = format!("{}_delete_success", mid);
+    buf.push_str(&format!("  {} -->|Yes| {}[\\\"🗑️ Remove from Database\\n• Soft Delete\\n• Archive Data\\n• Update References\\\"]\n", delete_confirm_id, delete_success_id));
+    buf.push_str(&format!("  class {} successState\n", delete_success_id));
+    
+    let delete_cancel_id = format!("{}_delete_cancel", mid);
+    buf.push_str(&format!("  {} -->|No| {}[\\\"❌ Operation Cancelled\\n• Return to Previous View\\n• No Changes Made\\\"]\n", delete_confirm_id, delete_cancel_id));
+    buf.push_str(&format!("  class {} systemResponse\n", delete_cancel_id));
+    
+    // All success paths lead back to main view
+    buf.push_str(&format!("  {} --> {}\n", create_success_id, entry_id));
+    buf.push_str(&format!("  {} --> {}\n", update_success_id, entry_id));
+    buf.push_str(&format!("  {} --> {}\n", delete_success_id, entry_id));
+    buf.push_str(&format!("  {} --> {}\n", delete_cancel_id, view_detail_id));
+    
+    Ok(())
+}
+
+// Generate data flow and API interaction patterns
+fn generate_data_flow_patterns(buf: &mut String, module: &str) -> Result<(), String> {
+    let mid = sanitize_id(module);
+    
+    // Data loading patterns
+    let data_load_id = format!("{}_data_loading", mid);
+    buf.push_str(&format!("  {}[\\\"⏳ Data Loading States\\n• Loading Spinner\\n• Skeleton UI\\n• Progress Indicators\\n• Error Boundaries\\\"]\n", data_load_id));
+    buf.push_str(&format!("  class {} systemResponse\n", data_load_id));
+    
+    // API interaction patterns
+    let api_patterns_id = format!("{}_api_patterns", mid);
+    buf.push_str(&format!("  {}[\\\"🔗 API Interaction Patterns\\n• Request Headers\\n• Authentication Tokens\\n• Rate Limiting\\n• Retry Logic\\n• Timeout Handling\\\"]\n", api_patterns_id));
+    buf.push_str(&format!("  class {} apiCall\n", api_patterns_id));
+    
+    // Caching strategies
+    let cache_patterns_id = format!("{}_cache_patterns", mid);
+    buf.push_str(&format!("  {}[\\\"💾 Caching Strategies\\n• Browser Cache\\n• Session Storage\\n• Local Storage\\n• IndexedDB\\n• Service Worker\\\"]\n", cache_patterns_id));
+    buf.push_str(&format!("  class {} dataFlow\n", cache_patterns_id));
+    
+    // Connect data flow
+    buf.push_str(&format!("  {} -.->|uses| {}\n", data_load_id, api_patterns_id));
+    buf.push_str(&format!("  {} -.->|caches via| {}\n", api_patterns_id, cache_patterns_id));
+    
+    Ok(())
+}
+
+// Generate user feedback and notification patterns
+fn generate_feedback_patterns(buf: &mut String, module: &str) -> Result<(), String> {
+    let mid = sanitize_id(module);
+    
+    // Success notifications
+    let success_notification_id = format!("{}_success_notifications", mid);
+    buf.push_str(&format!("  {}[\\\"✅ Success Feedback\\n• Toast Messages\\n• Status Updates\\n• Progress Confirmation\\n• Visual Indicators\\\"]\n", success_notification_id));
+    buf.push_str(&format!("  class {} successState\n", success_notification_id));
+    
+    // Error handling patterns
+    let error_handling_id = format!("{}_error_handling", mid);
+    buf.push_str(&format!("  {}[\\\"❌ Error Handling\\n• User-Friendly Messages\\n• Retry Mechanisms\\n• Fallback Options\\n• Support Links\\n• Error Reporting\\\"]\n", error_handling_id));
+    buf.push_str(&format!("  class {} errorState\n", error_handling_id));
+    
+    // Loading states
+    let loading_states_id = format!("{}_loading_states", mid);
+    buf.push_str(&format!("  {}[\\\"⏳ Loading States\\n• Immediate Feedback\\n• Progressive Loading\\n• Optimistic Updates\\n• Cancel Options\\\"]\n", loading_states_id));
+    buf.push_str(&format!("  class {} systemResponse\n", loading_states_id));
+    
+    // Accessibility features
+    let accessibility_id = format!("{}_accessibility", mid);
+    buf.push_str(&format!("  {}[\\\"♿ Accessibility Features\\n• Screen Reader Support\\n• Keyboard Navigation\\n• High Contrast Mode\\n• Focus Management\\n• ARIA Labels\\\"]\n", accessibility_id));
+    buf.push_str(&format!("  class {} userAction\n", accessibility_id));
+    
+    Ok(())
 }
