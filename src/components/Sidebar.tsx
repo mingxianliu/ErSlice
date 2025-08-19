@@ -70,7 +70,15 @@ const Sidebar: React.FC = () => {
       {/* Logo 區域 */}
       <div className="h-16 flex items-center justify-center border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-3">
-          <img src="/favicon.svg" alt="App Logo" className="h-8 w-8 rounded" onError={(e)=>{(e.currentTarget as HTMLImageElement).style.display='none'}} />
+          <img
+            src="/favicon.png"
+            alt="App Logo"
+            className="h-8 w-8 rounded"
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement
+              if (img.src.endsWith('/favicon.png')) { img.src = '/favicon.svg' } else { img.style.display = 'none' }
+            }}
+          />
           <span className="text-xl font-bold text-gray-900 dark:text-white">ErSlice</span>
         </div>
       </div>

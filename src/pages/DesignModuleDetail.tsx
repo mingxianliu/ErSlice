@@ -2,7 +2,8 @@ import React, { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeftIcon, DocumentArrowDownIcon, ArrowPathIcon, CloudArrowUpIcon, EyeIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useDesignModulesStore } from '../stores/designModules'
-import { generateSlicePackage, uploadDesignAsset, listAssets, deleteDesignAsset, getModuleTree, createModulePage, deleteModulePage, renameModulePage, createSubpage, deleteSubpage, renameSubpage, setPageOrder, setSubpageOrder, applyCrudSubpages, type PageNode } from '../utils/tauriCommands'
+import { generateSlicePackage, uploadDesignAsset, listAssets, deleteDesignAsset, getModuleTree, createModulePage, deleteModulePage, renameModulePage, createSubpage, deleteSubpage, renameSubpage, setPageOrder, setSubpageOrder, applyCrudSubpages, updatePageMeta, updateSubpageMeta, type PageNode } from '../utils/tauriCommands'
+import MetaEditorModal from '../components/MetaEditorModal'
 import { useToast } from '../components/ui/Toast'
 import { convertFileSrc } from '@tauri-apps/api/core'
 
@@ -31,6 +32,7 @@ const DesignModuleDetail: React.FC = () => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [newSubSlug, setNewSubSlug] = useState<Record<string, string>>({})
   const [drag, setDrag] = useState<{ kind: 'page' | 'sub'; parent?: string; slug: string } | null>(null)
+  const [metaEditor, setMetaEditor] = useState<null | { kind: 'page'|'sub'; parent?: string; slug: string; data: Partial<PageNode> }>(null)
 
   const reorder = <T,>(arr: T[], from: number, to: number): T[] => {
     const a = arr.slice()
@@ -235,21 +237,19 @@ const DesignModuleDetail: React.FC = () => {
                   ) : (
                     <>
                       <button className="btn-secondary text-sm" onClick={() => setRenaming({ slug: p.slug, to: p.slug })}>重新命名</button>
+                      <button className="btn-secondary text-sm" onClick={() => setMetaEditor({ kind: 'page', slug: p.slug, data: p })}>編輯</button>
                       <button className="btn-secondary text-sm" onClick={async () => {
                         if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
-                        const status = prompt('狀態（如 draft/ready）：', p.status || '') || undefined
-                        const route = prompt('路由（如 /module/page）：', p.route || '') || undefined
-                        const notes = prompt('備註：', p.notes || '') || undefined
                         try {
-                          const { updatePageMeta } = await import('../utils/tauriCommands')
-                          await updatePageMeta(moduleName, p.slug, { status, route, notes })
-                          await refreshPages()
-                          showSuccess('已更新頁面 Meta')
+                          const { generateModuleMermaidHtml } = await import('../utils/tauriCommands')
+                          const path = await generateModuleMermaidHtml(moduleName)
+                          const { open } = await import('@tauri-apps/plugin-shell')
+                          await open(path)
                         } catch (e) {
                           const m = e instanceof Error ? e.message : String(e)
-                          showError('更新頁面 Meta 失敗', m)
+                          showError('模組站點圖生成失敗', m)
                         }
-                      }}>編輯</button>
+                      }}>模組站點圖 HTML</button>
                       <button className="btn-secondary text-sm" onClick={async () => {
                         if (!confirm(`刪除頁面 ${p.slug}？`)) return
                         try {
@@ -360,21 +360,7 @@ const DesignModuleDetail: React.FC = () => {
                           ) : (
                             <>
                               <button className="btn-secondary text-sm" onClick={() => setRenaming({ slug: `${p.slug}/${c.slug}`, to: c.slug })}>重新命名</button>
-                              <button className="btn-secondary text-sm" onClick={async () => {
-                                if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
-                                const status = prompt('子頁狀態：', '') || undefined
-                                const route = prompt('子頁路由：', '') || undefined
-                                const notes = prompt('子頁備註：', '') || undefined
-                                try {
-                                  const { updateSubpageMeta } = await import('../utils/tauriCommands')
-                                  await updateSubpageMeta(moduleName, p.slug, c.slug, { status, route, notes })
-                                  await refreshPages()
-                                  showSuccess('已更新子頁 Meta')
-                                } catch (e) {
-                                  const m = e instanceof Error ? e.message : String(e)
-                                  showError('更新子頁 Meta 失敗', m)
-                                }
-                              }}>編輯</button>
+                              <button className="btn-secondary text-sm" onClick={() => setMetaEditor({ kind: 'sub', parent: p.slug, slug: c.slug, data: c })}>編輯</button>
                               <button className="btn-secondary text-sm" onClick={async () => {
                                 if (!confirm(`刪除子頁 ${c.slug}？`)) return
                                 try {
@@ -794,6 +780,31 @@ const DesignModuleDetail: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+      {metaEditor && (
+        <MetaEditorModal
+          kind={metaEditor.kind}
+          parent={metaEditor.parent}
+          moduleName={moduleName}
+          slug={metaEditor.slug}
+          initial={metaEditor.data}
+          onClose={() => setMetaEditor(null)}
+          onSaved={async (meta) => {
+            try {
+              if (metaEditor.kind === 'page') {
+                await updatePageMeta(moduleName, metaEditor.slug, meta)
+              } else {
+                await updateSubpageMeta(moduleName, metaEditor.parent!, metaEditor.slug, meta)
+              }
+              setMetaEditor(null)
+              await refreshPages()
+              showSuccess('已更新 Meta')
+            } catch (e) {
+              const m = e instanceof Error ? e.message : String(e)
+              showError('更新 Meta 失敗', m)
+            }
+          }}
+        />
       )}
     </div>
   )

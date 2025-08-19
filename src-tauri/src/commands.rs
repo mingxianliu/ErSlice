@@ -1406,6 +1406,10 @@ pub async fn generate_project_mermaid() -> Result<MermaidResult, String> {
     buf.push_str("  classDef mainModule fill:#e8f5e8,stroke:#4caf50,stroke-width:3px\n");
     buf.push_str("  classDef pageLevel fill:#f1f8e9,stroke:#8bc34a,stroke-width:2px\n");
     buf.push_str("  classDef componentLevel fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px\n");
+    buf.push_str("  classDef decision fill:#fff8e1,stroke:#ffc107,stroke-width:2px\n");
+    buf.push_str("  classDef toolbar fill:#e3f2fd,stroke:#2196f3,stroke-width:2px\n");
+    buf.push_str("  classDef form fill:#fff3e0,stroke:#ff9800,stroke-width:2px\n");
+    buf.push_str("  classDef table fill:#fce4ec,stroke:#e91e63,stroke-width:2px\n");
     buf.push_str("  subgraph Modules\n");
     for m in modules.iter() {
         let mid = sanitize_id(m);
@@ -1448,7 +1452,8 @@ pub async fn generate_project_mermaid() -> Result<MermaidResult, String> {
                     pmeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default())
             } else { format!("/{}/{}", m, pslug) };
             buf.push_str(&format!("  {} --> {}[\"{}\"]\n", mid, pid, p_label));
-            buf.push_str(&format!("  class {} pageLevel\n", pid));
+            let pclazz = pmeta.class.clone().unwrap_or_else(|| "pageLevel".into());
+            buf.push_str(&format!("  class {} {}\n", pid, pclazz));
             // Subpages
             let mut sub_slugs: Vec<String> = Vec::new();
             let sp_dir = module_dir.join(pslug).join("subpages");
@@ -1478,7 +1483,8 @@ pub async fn generate_project_mermaid() -> Result<MermaidResult, String> {
                         smeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default())
                 } else { format!("/{}/{}/{}", m, pslug, sslug) };
                 buf.push_str(&format!("  {} --> {}[\"{}\"]\n", pid, sid, s_label));
-                buf.push_str(&format!("  class {} componentLevel\n", sid));
+                let sclazz = smeta.class.clone().unwrap_or_else(|| "componentLevel".into());
+                buf.push_str(&format!("  class {} {}\n", sid, sclazz));
             }
         }
     }
@@ -1747,6 +1753,10 @@ pub async fn generate_module_mermaid_html(module: String) -> Result<String, Stri
     buf.push_str("  classDef mainModule fill:#e8f5e8,stroke:#4caf50,stroke-width:3px\n");
     buf.push_str("  classDef pageLevel fill:#f1f8e9,stroke:#8bc34a,stroke-width:2px\n");
     buf.push_str("  classDef componentLevel fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px\n");
+    buf.push_str("  classDef decision fill:#fff8e1,stroke:#ffc107,stroke-width:2px\n");
+    buf.push_str("  classDef toolbar fill:#e3f2fd,stroke:#2196f3,stroke-width:2px\n");
+    buf.push_str("  classDef form fill:#fff3e0,stroke:#ff9800,stroke-width:2px\n");
+    buf.push_str("  classDef table fill:#fce4ec,stroke:#e91e63,stroke-width:2px\n");
 
     let mid = sanitize_id(&module);
     buf.push_str(&format!("  {}[\"{}\"]\n", mid, module));
@@ -1771,7 +1781,8 @@ pub async fn generate_module_mermaid_html(module: String) -> Result<String, Stri
             format!("/{}/{}{}{}", module, pslug, pmeta.status.as_ref().map(|s| format!(" ({})", s)).unwrap_or_default(), pmeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default())
         } else { format!("/{}/{}", module, pslug) };
         buf.push_str(&format!("  {} --> {}[\"{}\"]\n", mid, pid, p_label));
-        buf.push_str(&format!("  class {} pageLevel\n", pid));
+        let pclazz = pmeta.class.clone().unwrap_or_else(|| "pageLevel".into());
+        buf.push_str(&format!("  class {} {}\n", pid, pclazz));
 
         let sp = mdir.join(pslug).join("subpages");
         let mut subs: Vec<String> = Vec::new();
@@ -1791,7 +1802,8 @@ pub async fn generate_module_mermaid_html(module: String) -> Result<String, Stri
                 format!("/{}/{}/{}{}{}", module, pslug, sslug, smeta.status.as_ref().map(|s| format!(" ({})", s)).unwrap_or_default(), smeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default())
             } else { format!("/{}/{}/{}", module, pslug, sslug) };
             buf.push_str(&format!("  {} --> {}[\"{}\"]\n", pid, sid, s_label));
-            buf.push_str(&format!("  class {} componentLevel\n", sid));
+            let sclazz = smeta.class.clone().unwrap_or_else(|| "componentLevel".into());
+            buf.push_str(&format!("  class {} {}\n", sid, sclazz));
         }
     }
 
