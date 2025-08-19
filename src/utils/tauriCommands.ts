@@ -298,6 +298,15 @@ export async function generateProjectMermaidHtml(): Promise<string> {
   }
 }
 
+export async function generateModuleMermaidHtml(module: string): Promise<string> {
+  try {
+    return await invoke<string>('generate_module_mermaid_html', { module })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
 export async function generateUnifiedSlicePackage(params: {
   externalDesignAssetsRoot: string
   aiDocFrontendInstructions: string

@@ -575,6 +575,20 @@ const DesignModuleDetail: React.FC = () => {
             >
               新增頁面
             </button>
+            <button
+              className="btn-secondary text-sm"
+              onClick={async () => {
+                if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
+                try {
+                  const { generateModuleMermaidHtml } = await import('../utils/tauriCommands')
+                  const path = await generateModuleMermaidHtml(moduleName)
+                  const { open } = await import('@tauri-apps/plugin-shell')
+                  await open(path)
+                } catch (e) {
+                  const m = e instanceof Error ? e.message : String(e)
+                  showError('生成模組站點圖失敗', m)
+                }
+              }}>模組站點圖 HTML</button>
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">可用逗號分隔批次新增，例如：list,detail,create</div>
         </div>

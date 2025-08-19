@@ -42,6 +42,7 @@ pub fn run() {
       commands::switch_project,
       commands::update_page_meta,
       commands::update_subpage_meta,
+      commands::generate_module_mermaid_html,
     ])
     .setup(|app| {
       // 設置 ErSlice 應用程式
