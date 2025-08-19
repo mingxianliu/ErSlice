@@ -374,7 +374,8 @@ export async function updateDefaultProject(cfg: TauriProjectConfig): Promise<Tau
 
 // Pages APIs (Phase 1: top-level only)
 export interface PageInfo { slug: string; path: string }
-export interface PageNode { slug: string; path: string; title?: string; status?: string; route?: string; notes?: string; children: PageNode[] }
+export interface LinkMeta { to: string; label?: string }
+export interface PageNode { slug: string; path: string; title?: string; status?: string; route?: string; notes?: string; domain?: string; area?: string; component?: string; action?: string; class?: string; links?: LinkMeta[]; children: PageNode[] }
 
 export async function getModulePages(moduleName: string): Promise<PageInfo[]> {
   try {
@@ -515,7 +516,7 @@ export async function switchProject(slug: string): Promise<TauriProjectConfig> {
 }
 
 // Page meta updates
-export interface PageMetaUpdate { title?: string; status?: string; route?: string; notes?: string; path?: string }
+export interface PageMetaUpdate { title?: string; status?: string; route?: string; notes?: string; path?: string; domain?: string; area?: string; component?: string; action?: string; class?: string; links?: LinkMeta[] }
 
 export async function updatePageMeta(moduleName: string, slug: string, meta: PageMetaUpdate): Promise<string> {
   try {

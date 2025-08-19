@@ -85,6 +85,12 @@ pub struct PageNode {
     pub status: Option<String>,
     pub route: Option<String>,
     pub notes: Option<String>,
+    pub domain: Option<String>,
+    pub area: Option<String>,
+    pub component: Option<String>,
+    pub action: Option<String>,
+    pub class: Option<String>,
+    pub links: Option<Vec<LinkMeta>>,
     pub children: Vec<PageNode>,
 }
 
@@ -1186,6 +1192,12 @@ pub async fn get_module_tree(module_name: String) -> Result<Vec<PageNode>, Strin
                                         status: m.status.clone(),
                                         route: m.route.clone(),
                                         notes: m.notes.clone(),
+                                        domain: m.domain.clone(),
+                                        area: m.area.clone(),
+                                        component: m.component.clone(),
+                                        action: m.action.clone(),
+                                        class: m.class.clone(),
+                                        links: m.links.clone(),
                                         children: vec![],
                                     });
                                 }
@@ -1200,6 +1212,12 @@ pub async fn get_module_tree(module_name: String) -> Result<Vec<PageNode>, Strin
                         status: m.status.clone(),
                         route: m.route.clone(),
                         notes: m.notes.clone(),
+                        domain: m.domain.clone(),
+                        area: m.area.clone(),
+                        component: m.component.clone(),
+                        action: m.action.clone(),
+                        class: m.class.clone(),
+                        links: m.links.clone(),
                         children,
                     });
                 }
@@ -1535,7 +1553,19 @@ pub async fn generate_project_mermaid() -> Result<MermaidResult, String> {
 
 // 更新頁面/子頁 meta
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PageMetaUpdate { pub title: Option<String>, pub status: Option<String>, pub route: Option<String>, pub notes: Option<String>, pub path: Option<String> }
+pub struct PageMetaUpdate {
+  pub title: Option<String>,
+  pub status: Option<String>,
+  pub route: Option<String>,
+  pub notes: Option<String>,
+  pub path: Option<String>,
+  pub domain: Option<String>,
+  pub area: Option<String>,
+  pub component: Option<String>,
+  pub action: Option<String>,
+  pub class: Option<String>,
+  pub links: Option<Vec<LinkMeta>>,
+}
 
 #[tauri::command]
 pub async fn update_page_meta(module_name: String, slug: String, meta: PageMetaUpdate) -> Result<String, String> {
@@ -1549,6 +1579,12 @@ pub async fn update_page_meta(module_name: String, slug: String, meta: PageMetaU
     if let Some(v) = meta.route { cur.route = Some(v); }
     if let Some(v) = meta.notes { cur.notes = Some(v); }
     if let Some(v) = meta.path { cur.path = Some(v); }
+    if let Some(v) = meta.domain { cur.domain = Some(v); }
+    if let Some(v) = meta.area { cur.area = Some(v); }
+    if let Some(v) = meta.component { cur.component = Some(v); }
+    if let Some(v) = meta.action { cur.action = Some(v); }
+    if let Some(v) = meta.class { cur.class = Some(v); }
+    if let Some(v) = meta.links { cur.links = Some(v); }
     let s = serde_json::to_string_pretty(&cur).map_err(|e| e.to_string())?;
     fs::write(p, s).map_err(|e| e.to_string())?;
     Ok("已更新頁面 meta".into())
@@ -1566,6 +1602,12 @@ pub async fn update_subpage_meta(module_name: String, parent_slug: String, slug:
     if let Some(v) = meta.route { cur.route = Some(v); }
     if let Some(v) = meta.notes { cur.notes = Some(v); }
     if let Some(v) = meta.path { cur.path = Some(v); }
+    if let Some(v) = meta.domain { cur.domain = Some(v); }
+    if let Some(v) = meta.area { cur.area = Some(v); }
+    if let Some(v) = meta.component { cur.component = Some(v); }
+    if let Some(v) = meta.action { cur.action = Some(v); }
+    if let Some(v) = meta.class { cur.class = Some(v); }
+    if let Some(v) = meta.links { cur.links = Some(v); }
     let s = serde_json::to_string_pretty(&cur).map_err(|e| e.to_string())?;
     fs::write(p, s).map_err(|e| e.to_string())?;
     Ok("已更新子頁 meta".into())
