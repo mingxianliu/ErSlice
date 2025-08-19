@@ -69,13 +69,9 @@ const Sidebar: React.FC = () => {
     <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
       {/* Logo 區域 */}
       <div className="h-16 flex items-center justify-center border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">E</span>
-          </div>
-          <span className="text-xl font-bold text-gray-900 dark:text-white">
-            ErSlice
-          </span>
+        <div className="flex items-center space-x-3">
+          <img src="/favicon.svg" alt="App Logo" className="h-8 w-8 rounded" onError={(e)=>{(e.currentTarget as HTMLImageElement).style.display='none'}} />
+          <span className="text-xl font-bold text-gray-900 dark:text-white">ErSlice</span>
         </div>
       </div>
 
