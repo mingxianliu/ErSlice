@@ -307,6 +307,24 @@ export async function generateModuleMermaidHtml(module: string): Promise<string>
   }
 }
 
+export async function generateModuleCrudMermaidHtml(module: string): Promise<string> {
+  try {
+    return await invoke<string>('generate_module_crud_mermaid_html', { module })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
+export async function generatePageMermaidHtml(module: string, page: string): Promise<string> {
+  try {
+    return await invoke<string>('generate_page_mermaid_html', { module, page })
+  } catch (error) {
+    const ersliceError = handleTauriError(error)
+    throw new Error(getUserFriendlyMessage(ersliceError))
+  }
+}
+
 export async function generateUnifiedSlicePackage(params: {
   externalDesignAssetsRoot: string
   aiDocFrontendInstructions: string

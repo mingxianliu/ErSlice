@@ -1742,7 +1742,7 @@ pub async fn generate_project_mermaid_html() -> Result<String, String> {
 
 // 針對單一模組輸出 Mermaid（.mmd）與 HTML 預覽
 #[tauri::command]
-pub async fn generate_module_mermaid_html(module: String) -> Result<String, String> {
+  pub async fn generate_module_mermaid_html(module: String) -> Result<String, String> {
     use std::fs;
     let root = PathBuf::from("design-assets");
     let mdir = root.join(&module).join("pages");
@@ -1805,9 +1805,9 @@ pub async fn generate_module_mermaid_html(module: String) -> Result<String, Stri
             let sclazz = smeta.class.clone().unwrap_or_else(|| "componentLevel".into());
             buf.push_str(&format!("  class {} {}\n", sid, sclazz));
         }
-    }
-
-    // HTML 模板複用專案版本
+  }
+  
+  // HTML 模板複用專案版本
     let mmd_path = PathBuf::from("ai-docs").join(format!("module-{}-sitemap.mmd", sanitize_id(&module)));
     std::fs::create_dir_all(mmd_path.parent().unwrap()).map_err(|e| e.to_string())?;
     fs::write(&mmd_path, buf).map_err(|e| e.to_string())?;
@@ -1818,6 +1818,165 @@ pub async fn generate_module_mermaid_html(module: String) -> Result<String, Stri
   <script type=\"module\">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </head><body><h1>Module Sitemap - {module}</h1><div class=\"mermaid\">{graph}</div></body></html>"#, module=module, graph=content);
     let html_path = PathBuf::from("ai-docs").join(format!("module-{}-sitemap.html", sanitize_id(&module)));
+  fs::write(&html_path, html).map_err(|e| e.to_string())?;
+  Ok(html_path.to_string_lossy().to_string())
+}
+
+// 生成模組 CRUD 流程圖（.html）
+#[tauri::command]
+pub async fn generate_module_crud_mermaid_html(module: String) -> Result<String, String> {
+    use std::fs;
+    let root = std::path::PathBuf::from("design-assets");
+    let mdir = root.join(&module).join("pages");
+    if !mdir.exists() { return Err("模組不存在或沒有 pages".into()); }
+
+    let safe = |s: &str| sanitize_id(s);
+    let mid = safe(&module);
+
+    // 探測 CRUD 頁面是否存在
+    let has = |slug: &str| mdir.join(slug).exists();
+    let has_list = has("list");
+    let has_create = has("create");
+    let has_edit = has("edit");
+    let has_detail = has("detail");
+
+    let mut buf = String::new();
+    buf.push_str("flowchart TD\n");
+    buf.push_str("  classDef mainModule fill:#e8f5e8,stroke:#4caf50,stroke-width:3px\n");
+    buf.push_str("  classDef pageLevel fill:#f1f8e9,stroke:#8bc34a,stroke-width:2px\n");
+    buf.push_str("  classDef decision fill:#fff8e1,stroke:#ffc107,stroke-width:2px\n");
+    buf.push_str("  classDef form fill:#fff3e0,stroke:#ff9800,stroke-width:2px\n");
+
+    // 模組節點
+    buf.push_str(&format!("  {}[\\\"{}\\\"]\n  class {} mainModule\n", mid, module, mid));
+
+    // 頁面節點
+    let pid_list = format!("{}_{}", mid, safe("list"));
+    let pid_create = format!("{}_{}", mid, safe("create"));
+    let pid_edit = format!("{}_{}", mid, safe("edit"));
+    let pid_detail = format!("{}_{}", mid, safe("detail"));
+
+    if has_list { buf.push_str(&format!("  {} --> {}[\\\"/{}/list\\\"]\n  class {} pageLevel\n", mid, pid_list, module, pid_list)); }
+    if has_create { buf.push_str(&format!("  {} --> {}[\\\"/{}/create\\\"]\n  class {} pageLevel\n", mid, pid_create, module, pid_create)); }
+    if has_edit { buf.push_str(&format!("  {} --> {}[\\\"/{}/edit\\\"]\n  class {} pageLevel\n", mid, pid_edit, module, pid_edit)); }
+    if has_detail { buf.push_str(&format!("  {} --> {}[\\\"/{}/detail\\\"]\n  class {} pageLevel\n", mid, pid_detail, module, pid_detail)); }
+
+    // list 流向
+    if has_list && has_create {
+        buf.push_str(&format!("  {} --> {}\n", pid_list, pid_create));
+    }
+    if has_list && has_edit {
+        buf.push_str(&format!("  {} --> {}\n", pid_list, pid_edit));
+    }
+    if has_list && has_detail {
+        buf.push_str(&format!("  {} --> {}\n", pid_list, pid_detail));
+    }
+
+    // create 流程：form → validate → submit/error
+    if has_create {
+        let create_form = format!("{}_create_form", pid_create);
+        let create_validate = format!("{}_create_validate", pid_create);
+        let create_submit = format!("{}_create_submit", pid_create);
+        let create_error = format!("{}_create_error", pid_create);
+        buf.push_str(&format!("  {} --> {}[\\\"create form\\\"]\n  class {} form\n", pid_create, create_form, create_form));
+        buf.push_str(&format!("  {} --> {}{{\\\"create validate\\\"}}\n  class {} decision\n", create_form, create_validate, create_validate));
+        buf.push_str(&format!("  {} -->|通過| {}[\\\"create submit\\\"]\n", create_validate, create_submit));
+        buf.push_str(&format!("  {} -->|失敗| {}[\\\"create error\\\"]\n", create_validate, create_error));
+    }
+
+    // edit 流程：form → validate → submit/error
+    if has_edit {
+        let edit_form = format!("{}_edit_form", pid_edit);
+        let edit_validate = format!("{}_edit_validate", pid_edit);
+        let edit_submit = format!("{}_edit_submit", pid_edit);
+        let edit_error = format!("{}_edit_error", pid_edit);
+        buf.push_str(&format!("  {} --> {}[\\\"edit form\\\"]\n  class {} form\n", pid_edit, edit_form, edit_form));
+        buf.push_str(&format!("  {} --> {}{{\\\"edit validate\\\"}}\n  class {} decision\n", edit_form, edit_validate, edit_validate));
+        buf.push_str(&format!("  {} -->|通過| {}[\\\"edit submit\\\"]\n", edit_validate, edit_submit));
+        buf.push_str(&format!("  {} -->|失敗| {}[\\\"edit error\\\"]\n", edit_validate, edit_error));
+    }
+
+    // 寫檔
+    let mmd_path = std::path::PathBuf::from("ai-docs").join(format!("module-{}-crud.mmd", sanitize_id(&module)));
+    std::fs::create_dir_all(mmd_path.parent().unwrap()).map_err(|e| e.to_string())?;
+    fs::write(&mmd_path, buf).map_err(|e| e.to_string())?;
+    let content = std::fs::read_to_string(&mmd_path).map_err(|e| e.to_string())?;
+    let html = format!(r#"<!DOCTYPE html>
+<html lang=\"zh-TW\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Module CRUD - {module}</title>
+  <script type=\"module\">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</head><body><h1>Module CRUD - {module}</h1><div class=\"mermaid\">{graph}</div></body></html>"#, module=module, graph=content);
+    let html_path = std::path::PathBuf::from("ai-docs").join(format!("module-{}-crud.html", sanitize_id(&module)));
+    fs::write(&html_path, html).map_err(|e| e.to_string())?;
+    Ok(html_path.to_string_lossy().to_string())
+}
+
+// 生成單頁站點圖（.html）
+#[tauri::command]
+pub async fn generate_page_mermaid_html(module: String, page: String) -> Result<String, String> {
+    use std::fs;
+    let root = std::path::PathBuf::from("design-assets");
+    let pdir = root.join(&module).join("pages").join(&page);
+    if !pdir.exists() { return Err("頁面不存在".into()); }
+    let sp = pdir.join("subpages");
+
+    let mut buf = String::new();
+    buf.push_str("flowchart TD\n");
+    buf.push_str("  classDef mainModule fill:#e8f5e8,stroke:#4caf50,stroke-width:3px\n");
+    buf.push_str("  classDef pageLevel fill:#f1f8e9,stroke:#8bc34a,stroke-width:2px\n");
+    buf.push_str("  classDef componentLevel fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px\n");
+    buf.push_str("  classDef decision fill:#fff8e1,stroke:#ffc107,stroke-width:2px\n");
+    buf.push_str("  classDef toolbar fill:#e3f2fd,stroke:#2196f3,stroke-width:2px\n");
+    buf.push_str("  classDef form fill:#fff3e0,stroke:#ff9800,stroke-width:2px\n");
+    buf.push_str("  classDef table fill:#fce4ec,stroke:#e91e63,stroke-width:2px\n");
+
+    let mid = sanitize_id(&module);
+    let pid = format!("{}_{}", mid, sanitize_id(&page));
+    let pmeta = read_page_meta(&pdir);
+    let p_label = if pmeta.status.is_some() || pmeta.route.is_some() {
+        format!("/{}/{}{}{}", module, page, pmeta.status.as_ref().map(|s| format!(" ({})", s)).unwrap_or_default(), pmeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default())
+    } else { format!("/{}/{}", module, page) };
+    buf.push_str(&format!("  {}[\\\"{}\\\"]\n", pid, p_label));
+    let pclazz = pmeta.class.clone().unwrap_or_else(|| "pageLevel".into());
+    buf.push_str(&format!("  class {} {}\n", pid, pclazz));
+
+    // 子頁
+    if sp.exists() {
+        if let Ok(sentries) = std::fs::read_dir(&sp) {
+            for se in sentries.flatten() {
+                let spath = se.path(); if !spath.is_dir() { continue; }
+                let sslug = spath.file_name().and_then(|s| s.to_str()).unwrap_or("");
+                let sid = format!("{}_{}", pid, sanitize_id(sslug));
+                let smeta = read_page_meta(&spath);
+                let s_label = if smeta.status.is_some() || smeta.route.is_some() {
+                    format!("/{}/{}/{}{}{}", module, page, sslug, smeta.status.as_ref().map(|s| format!(" ({})", s)).unwrap_or_default(), smeta.route.as_ref().map(|r| format!("\\n{}", r)).unwrap_or_default())
+                } else { format!("/{}/{}/{}", module, page, sslug) };
+                buf.push_str(&format!("  {} --> {}[\\\"{}\\\"]\n", pid, sid, s_label));
+                let sclazz = smeta.class.clone().unwrap_or_else(|| "componentLevel".into());
+                buf.push_str(&format!("  class {} {}\n", sid, sclazz));
+            }
+        }
+    }
+    // links
+    if let Some(links) = pmeta.links.clone() {
+        for lk in links.iter() {
+            let (tid, label) = resolve_link_id(lk, &module, &page);
+            if let Some(tid) = tid {
+                if let Some(label) = label { buf.push_str(&format!("  {} -.->|{}| {}\n", pid, label, tid)); }
+                else { buf.push_str(&format!("  {} -.-> {}\n", pid, tid)); }
+            }
+        }
+    }
+
+    // 寫檔
+    let mmd_path = std::path::PathBuf::from("ai-docs").join(format!("page-{}-{}-sitemap.mmd", sanitize_id(&module), sanitize_id(&page)));
+    std::fs::create_dir_all(mmd_path.parent().unwrap()).map_err(|e| e.to_string())?;
+    fs::write(&mmd_path, buf).map_err(|e| e.to_string())?;
+    let content = std::fs::read_to_string(&mmd_path).map_err(|e| e.to_string())?;
+    let html = format!(r#"<!DOCTYPE html>
+<html lang=\"zh-TW\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Page Sitemap - {module}/{page}</title>
+  <script type=\"module\">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</head><body><h1>Page Sitemap - {module}/{page}</h1><div class=\"mermaid\">{graph}</div></body></html>"#, module=module, page=page, graph=content);
+    let html_path = std::path::PathBuf::from("ai-docs").join(format!("page-{}-{}-sitemap.html", sanitize_id(&module), sanitize_id(&page)));
     fs::write(&html_path, html).map_err(|e| e.to_string())?;
     Ok(html_path.to_string_lossy().to_string())
 }

@@ -241,6 +241,18 @@ const DesignModuleDetail: React.FC = () => {
                       <button className="btn-secondary text-sm" onClick={async () => {
                         if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
                         try {
+                          const { generatePageMermaidHtml } = await import('../utils/tauriCommands')
+                          const path = await generatePageMermaidHtml(moduleName, p.slug)
+                          const { open } = await import('@tauri-apps/plugin-shell')
+                          await open(path)
+                        } catch (e) {
+                          const m = e instanceof Error ? e.message : String(e)
+                          showError('頁面站點圖生成失敗', m)
+                        }
+                      }}>頁面站點圖 HTML</button>
+                      <button className="btn-secondary text-sm" onClick={async () => {
+                        if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
+                        try {
                           const { generateModuleMermaidHtml } = await import('../utils/tauriCommands')
                           const path = await generateModuleMermaidHtml(moduleName)
                           const { open } = await import('@tauri-apps/plugin-shell')
@@ -575,6 +587,20 @@ const DesignModuleDetail: React.FC = () => {
                   showError('生成模組站點圖失敗', m)
                 }
               }}>模組站點圖 HTML</button>
+            <button
+              className="btn-secondary text-sm"
+              onClick={async () => {
+                if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
+                try {
+                  const { generateModuleCrudMermaidHtml } = await import('../utils/tauriCommands')
+                  const path = await generateModuleCrudMermaidHtml(moduleName)
+                  const { open } = await import('@tauri-apps/plugin-shell')
+                  await open(path)
+                } catch (e) {
+                  const m = e instanceof Error ? e.message : String(e)
+                  showError('生成 CRUD 圖失敗', m)
+                }
+              }}>模組 CRUD 圖 HTML</button>
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">可用逗號分隔批次新增，例如：list,detail,create</div>
         </div>
