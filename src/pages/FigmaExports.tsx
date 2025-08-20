@@ -8,13 +8,16 @@ import {
   FolderIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ClockIcon
+  ClockIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline'
 import { useToast } from '../components/ui/Toast'
 import PageLayout from '../components/PageLayout'
 import SearchAndFilters from '../components/SearchAndFilters'
 import StatCard from '../components/StatCard'
 import Pagination from '../components/Pagination'
+import FigmaExportOptions from '../components/FigmaExportOptions'
+import { useDesignModulesStore } from '../stores/designModules'
 
 // Figma 導出記錄介面
 interface FigmaExportRecord {
@@ -46,6 +49,7 @@ interface FilterOptions {
 
 const FigmaExports: React.FC = () => {
   const { showSuccess, showError, showInfo } = useToast()
+  const moduleStore = useDesignModulesStore()
   const [exportRecords, setExportRecords] = useState<FigmaExportRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -58,6 +62,10 @@ const FigmaExports: React.FC = () => {
   // 分頁狀態
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 8
+  
+  // 新導出功能狀態
+  const [showNewExportModal, setShowNewExportModal] = useState(false)
+  const [exportingNew, setExportingNew] = useState(false)
   
   // 載入示範資料
   const loadExportRecords = async () => {
@@ -148,7 +156,64 @@ const FigmaExports: React.FC = () => {
 
   useEffect(() => {
     loadExportRecords()
+    moduleStore.init() // 初始化設計模組數據
   }, [])
+
+  // 處理新的 Figma 導出
+  const handleNewFigmaExport = async (options: {
+    includeAssets: boolean
+    includeTokens: boolean
+    includeComponents: boolean
+    exportFormat: 'figma-json' | 'design-tokens' | 'component-kit'
+  }) => {
+    setExportingNew(true)
+    try {
+      const activeModules = moduleStore.modules.filter(m => m.status === 'active')
+      
+      if (activeModules.length === 0) {
+        showError('沒有可導出的模組', '請先前往設計資產頁面創建模組')
+        return
+      }
+
+      // 模擬導出處理
+      showInfo('開始導出Figma格式...', '正在準備設計資產')
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // 創建新的導出記錄
+      const newRecord: FigmaExportRecord = {
+        id: Date.now().toString(),
+        name: `設計系統導出 ${new Date().toLocaleDateString('zh-TW')}`,
+        exportFormat: options.exportFormat,
+        includedContent: {
+          assets: options.includeAssets,
+          tokens: options.includeTokens,
+          components: options.includeComponents
+        },
+        moduleCount: activeModules.length,
+        assetCount: options.includeAssets ? activeModules.reduce((sum, m) => sum + (m.asset_count ?? 0), 0) : 0,
+        tokenCount: options.includeTokens ? 35 : 0,
+        componentCount: options.includeComponents ? activeModules.length * 3 : 0,
+        status: 'success',
+        createdAt: new Date().toISOString(),
+        fileSize: '3.2 MB',
+        downloadUrl: `/exports/figma-export-${Date.now()}.zip`
+      }
+
+      // 添加到記錄列表
+      setExportRecords(prev => [newRecord, ...prev])
+      
+      showSuccess(
+        'Figma格式導出完成！', 
+        `已成功導出 ${activeModules.length} 個模組\n格式：${options.exportFormat}\n檔案大小：${newRecord.fileSize}`
+      )
+      
+      setShowNewExportModal(false)
+    } catch (error) {
+      showError('導出失敗', error instanceof Error ? error.message : '未知錯誤')
+    } finally {
+      setExportingNew(false)
+    }
+  }
 
   // 篩選和搜尋邏輯
   const filteredRecords = useMemo(() => {
@@ -360,24 +425,34 @@ const FigmaExports: React.FC = () => {
   )
 
   return (
-    <PageLayout
-      title="Figma 導出記錄"
-      description="管理和追蹤 Figma 格式導出記錄"
-      icon={ArrowUpTrayIcon}
-      onRefresh={loadExportRecords}
-      refreshLoading={loading}
-      searchAndFilters={searchAndFiltersProps}
-      stats={statsProps}
-      pagination={
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          totalItems={filteredRecords.length}
-          itemsPerPage={itemsPerPage}
-        />
-      }
-    >
+    <>
+      <PageLayout
+        title="Figma 導出記錄"
+        description="管理和追蹤 Figma 格式導出記錄"
+        icon={ArrowUpTrayIcon}
+        actions={
+          <button
+            onClick={() => setShowNewExportModal(true)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <PlusIcon className="h-5 w-5" />
+            新增導出
+          </button>
+        }
+        onRefresh={loadExportRecords}
+        refreshLoading={loading}
+        searchAndFilters={searchAndFiltersProps}
+        stats={statsProps}
+        pagination={
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filteredRecords.length}
+            itemsPerPage={itemsPerPage}
+          />
+        }
+      >
         {loading ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -510,7 +585,52 @@ const FigmaExports: React.FC = () => {
 
           </>
         )}
-    </PageLayout>
+      </PageLayout>
+
+      {/* 新增導出 Modal */}
+      {showNewExportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <ArrowUpTrayIcon className="h-5 w-5 text-blue-600" />
+                  新增 Figma 導出
+                </h3>
+                <button
+                  onClick={() => setShowNewExportModal(false)}
+                  disabled={exportingNew}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <XCircleIcon className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4 mb-6">
+                <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+                  <p>📦 <strong>資料來源</strong>：目前活躍的設計模組和資產</p>
+                  <p>🎯 <strong>導出目標</strong>：生成 Figma 可直接匯入的格式檔案</p>
+                  <p>💡 <strong>使用方式</strong>：下載檔案後手動匯入到 Figma</p>
+                </div>
+                
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                  <div className="text-blue-800 dark:text-blue-200 text-sm">
+                    <strong>將導出 {moduleStore.modules.filter(m => m.status === 'active').length} 個活躍模組</strong>
+                  </div>
+                </div>
+                
+                <FigmaExportOptions
+                  onExport={handleNewFigmaExport}
+                  onCancel={() => setShowNewExportModal(false)}
+                  loading={exportingNew}
+                  moduleCount={moduleStore.modules.filter(m => m.status === 'active').length}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

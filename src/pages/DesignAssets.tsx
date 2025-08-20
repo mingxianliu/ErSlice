@@ -275,59 +275,130 @@ const DesignAssets: React.FC = () => {
     }
   }
 
-  return (
-    <div className="space-y-6 min-h-full bg-gray-50 dark:bg-gray-900">
-      {/* 頁面標題和操作 */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">設計資產管理</h1>
-          <p className="text-gray-600 dark:text-gray-400">管理前端模組的設計稿、切圖和資源檔案</p>
-        </div>
-        
-        {/* 設計資產相關操作 */}
-        <div className="flex items-center gap-2">
-          <button className="btn-primary flex items-center gap-2" onClick={() => setOpenCreate(true)} disabled={store.viewArchived}>
-            <PlusIcon className="h-5 w-5" />
-            新增模組
-          </button>
-          {!store.viewArchived && (
-            <>
-              <button
-                onClick={() => setOpenBulkGen(true)}
-                className="btn-primary"
-                title="一鍵為所有現行模組生成切版說明包"
-              >
-                一鍵生成全部
-              </button>
-              <button
-                onClick={() => setOpenFigmaExport(true)}
-                className="btn-secondary flex items-center gap-2"
-                title="將ErSlice中的設計模組、切圖資產等轉換為Figma可匯入的標準格式，支援設計令牌、組件結構等"
-              >
-                <ArrowUpTrayIcon className="h-5 w-5" />
-                導出至Figma
-              </button>
-            </>
-          )}
-          <button onClick={store.refresh} className="btn-secondary flex items-center gap-2" title="重新整理">
-            <ArrowPathIcon className="h-5 w-5" />
-            重新整理
+  // 準備統一佈局的 props
+  const actionsButtons = (
+    <>
+      <button 
+        className="btn-primary flex items-center gap-2" 
+        onClick={() => setOpenCreate(true)} 
+        disabled={store.viewArchived}
+      >
+        <PlusIcon className="h-5 w-5" />
+        新增模組
+      </button>
+      {!store.viewArchived && (
+        <>
+          <button
+            onClick={() => setOpenBulkGen(true)}
+            className="btn-primary"
+            title="一鍵為所有現行模組生成切版說明包"
+          >
+            一鍵生成全部
           </button>
           <button
-            onClick={async () => {
-              store.setViewArchived(!store.viewArchived)
-              await store.refresh()
-            }}
-            className={`btn-secondary ${store.viewArchived ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}`}
-            title={store.viewArchived ? '切換至現行模組' : '切換至封存模組'}
+            onClick={() => setOpenFigmaExport(true)}
+            className="btn-secondary flex items-center gap-2"
+            title="將ErSlice中的設計模組、切圖資產等轉換為Figma可匯入的標準格式，支援設計令牌、組件結構等"
           >
-            {store.viewArchived ? '查看現行' : '查看封存'}
+            <ArrowUpTrayIcon className="h-5 w-5" />
+            導出至Figma
           </button>
-        </div>
-      </div>
+        </>
+      )}
+      <button
+        onClick={async () => {
+          store.setViewArchived(!store.viewArchived)
+          await store.refresh()
+        }}
+        className={`btn-secondary ${store.viewArchived ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}`}
+        title={store.viewArchived ? '切換至現行模組' : '切換至封存模組'}
+      >
+        {store.viewArchived ? '查看現行' : '查看封存'}
+      </button>
+    </>
+  )
 
-      {/* 控制列：搜尋、篩選、排序、頁大小 */}
-      <div className="card p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+  const searchAndFiltersProps = (
+    <SearchAndFilters
+      searchQuery={store.query}
+      onSearchChange={(q) => store.setQuery(q)}
+      searchPlaceholder="搜尋模組名稱或描述..."
+      filters={[
+        // 專案篩選
+        <select
+          key="project"
+          value={store.projectFilter}
+          onChange={(e) => store.setProjectFilter(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+        >
+          <option value="all">所有專案</option>
+          <option value="demo-project">示範專案</option>
+          <option value="ecommerce-shop">電商商城</option>
+          <option value="sample-website">範例網站</option>
+          <option value="dashboard-admin">管理後台</option>
+          <option value="mobile-app-landing">手機應用官網</option>
+          <option value="portfolio-site">個人作品集</option>
+        </select>,
+        
+        // 狀態篩選
+        <select
+          key="status"
+          value={store.status}
+          onChange={(e) => store.setStatus(e.target.value as any)}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+        >
+          <option value="all">全部狀態</option>
+          <option value="active">活躍</option>
+          <option value="draft">草稿</option>
+          <option value="archived">已封存</option>
+        </select>,
+        
+        // 排序
+        <select
+          key="sort"
+          value={`${store.sortBy}:${store.sortDir}`}
+          onChange={(e) => {
+            const [by, dir] = e.target.value.split(':') as [any, any]
+            store.setSort(by, dir)
+          }}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+        >
+          <option value="name:asc">名稱 ↑</option>
+          <option value="name:desc">名稱 ↓</option>
+          <option value="assets:asc">資產數 ↑</option>
+          <option value="assets:desc">資產數 ↓</option>
+          <option value="updated:asc">更新時間 ↑</option>
+          <option value="updated:desc">更新時間 ↓</option>
+        </select>,
+        
+        // 每頁數量
+        <select
+          key="pageSize"
+          value={store.pageSize}
+          onChange={(e) => store.setPageSize(Number(e.target.value))}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+        >
+          <option value={6}>每頁 6 筆</option>
+          <option value={9}>每頁 9 筆</option>
+          <option value={12}>每頁 12 筆</option>
+        </select>
+      ]}
+    />
+  )
+
+  return (
+    <div className="space-y-6 min-h-full bg-gray-50 dark:bg-gray-900">
+      <PageLayout
+        title="設計資產管理"
+        description="管理前端模組的設計稿、切圖和資源檔案"
+        icon={FolderIcon}
+        actions={actionsButtons}
+        onRefresh={store.refresh}
+        refreshLoading={store.loading}
+        searchAndFilters={searchAndFiltersProps}
+      >
+        {/* 舊的搜尋篩選區域移除，改用統一組件 */}
+        {/* <div className="card p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
         <input
           type="text"
           value={store.query}

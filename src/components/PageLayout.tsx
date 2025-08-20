@@ -54,8 +54,8 @@ const PageLayout: React.FC<PageLayoutProps> = ({
           )}
         </div>
         
-        {/* 統一的操作按鈕區域 */}
-        <div className="flex items-center gap-3">
+        {/* 統一的操作按鈕區域 - 固定靠右對齊 */}
+        <div className="flex items-center gap-3 ml-auto">
           {actions}
           {showRefreshButton && onRefresh && (
             <button
