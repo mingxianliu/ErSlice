@@ -899,7 +899,7 @@ const ProjectHub: React.FC = () => {
         </div>
         
         {/* 列表內容 - 固定高度 */}
-        <div className="overflow-x-auto h-96 min-h-96">
+        <div className="overflow-x-auto">
           {loading ? (
             <div className="flex items-center justify-center h-full text-gray-500">
               <div className="text-center">
@@ -920,7 +920,7 @@ const ProjectHub: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="h-full overflow-y-auto">
+            <div>
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-800/50 sticky top-0">
                   <tr>
