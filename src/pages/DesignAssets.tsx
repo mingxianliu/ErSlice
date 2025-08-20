@@ -246,7 +246,7 @@ const DesignAssets: React.FC = () => {
       
       showSuccess(
         'Figma格式導出完成！', 
-        summary.join('\n')
+        summary.join('\n') + '\n\n💡 前往資源庫 > Figma導出 查看完整記錄'
       )
       
       // 在 Tauri 環境中可以直接開啟文件夾

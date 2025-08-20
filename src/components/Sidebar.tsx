@@ -9,6 +9,7 @@ import {
   MapIcon,
   ChartBarIcon,
   ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
   BuildingLibraryIcon,
   RocketLaunchIcon
 } from '@heroicons/react/24/outline'
@@ -58,6 +59,13 @@ const navigation: NavItem[] = [
         href: '/library/ai-specs',
         icon: SparklesIcon,
         description: 'AI 開發規格管理',
+        enabled: true,
+      },
+      {
+        name: 'Figma 導出',
+        href: '/library/figma-exports',
+        icon: ArrowUpTrayIcon,
+        description: 'Figma 導出記錄管理',
         enabled: true,
       }
     ]

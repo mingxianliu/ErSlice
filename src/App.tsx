@@ -8,6 +8,7 @@ import ProjectHub from './pages/ProjectHub'
 import DesignAssets from './pages/DesignAssets'
 import TemplateGenerator from './pages/TemplateGenerator'
 import AISpecGenerator from './pages/AISpecGenerator'
+import FigmaExports from './pages/FigmaExports'
 import DesignModuleDetail from './pages/DesignModuleDetail'
 import Settings from './pages/Settings'
 
@@ -32,6 +33,7 @@ function App() {
             <Route path="/library/assets/:name" element={<DesignModuleDetail />} />
             <Route path="/library/templates" element={<TemplateGenerator />} />
             <Route path="/library/ai-specs" element={<AISpecGenerator />} />
+            <Route path="/library/figma-exports" element={<FigmaExports />} />
             
             {/* 其他頁面 */}
             <Route path="/dashboard" element={<Dashboard />} />
