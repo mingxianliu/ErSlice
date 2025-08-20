@@ -13,6 +13,9 @@ projects/
 design-assets/
 design-assets-archived/
 
+# internal confidential research
+figma-to-code-research/
+
 # rust targets
 src-tauri/target/
 
