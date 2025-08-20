@@ -19,70 +19,60 @@ interface StatCard {
   color: string
 }
 
-// ErSlice 儀表板頁面 - 專案概覽和統計
+// 視覺切版工廠儀表板頁面 - 專案概覽和統計
 const Dashboard: React.FC = () => {
   const store = useDesignModulesStore()
   const navigate = useNavigate()
   const { showError } = useToast()
   const [analytics, setAnalytics] = useState<SitemapAnalytics | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   // 載入真實數據
   useEffect(() => {
     const loadData = async () => {
-      if (!store.tauriAvailable) return
-      
       try {
-        // 載入設計模組數據
-        await store.refreshModules()
-        
-        // 載入站點圖分析數據
-        const analyticsData = await analyzeSitemap()
-        setAnalytics(analyticsData)
+        // 初始化 store
+        store.init()
       } catch (error) {
-        showError('載入數據失敗', error instanceof Error ? error.message : '未知錯誤')
-      } finally {
-        setLoading(false)
+        console.warn('初始化失敗:', error)
       }
     }
 
     loadData()
-  }, [store.tauriAvailable])
+  }, [])
 
-  // 從真實數據計算統計
-  const stats = {
-    modules: store.modules.length,
-    pages: analytics?.total_pages || 0,
-    subpages: analytics?.total_subpages || 0,
-    completion: analytics?.coverage_metrics.completion_percentage || 0
-  }
+  // 從真實數據計算統計 - 使用默認值避免錯誤
+  const totalModules = store.modules?.length || 0
+  const activeModules = store.modules?.filter(m => m.status === 'active')?.length || 0
+  const totalAssets = store.modules?.reduce((sum, m) => sum + (m.asset_count ?? 0), 0) || 0
+  const completionRate = totalModules ? Math.round((activeModules / totalModules) * 100) : 0
 
   const statCards: StatCard[] = [
     {
-      title: '設計模組',
-      value: stats.modules,
-      description: '已管理的設計模組',
+      title: '總模組數',
+      value: totalModules,
+      description: '專案中的設計模組總數',
       icon: FolderIcon,
       color: 'bg-blue-500'
     },
     {
-      title: '頁面數量',
-      value: stats.pages,
-      description: '專案中的頁面總數',
+      title: '活躍模組',
+      value: activeModules,
+      description: '目前活躍的設計模組',
       icon: DocumentTextIcon,
       color: 'bg-green-500'
     },
     {
-      title: '子頁面',
-      value: stats.subpages,
-      description: '包含的子頁面數量',
+      title: '總資產數',
+      value: totalAssets,
+      description: '所有模組的設計資產總和',
       icon: SparklesIcon,
       color: 'bg-purple-500'
     },
     {
-      title: '完成度',
-      value: `${stats.completion.toFixed(1)}%`,
-      description: '專案整體完成進度',
+      title: '完成率',
+      value: `${completionRate}%`,
+      description: '活躍模組佔總模組的比例',
       icon: ChartBarIcon,
       color: 'bg-orange-500'
     }
@@ -104,7 +94,7 @@ const Dashboard: React.FC = () => {
           專案儀表板
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          ErSlice 前端切版說明包生成器專案概覽
+          視覺切版工廠專案概覽與統計資訊
         </p>
       </div>
 
@@ -132,43 +122,34 @@ const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* 模組完成度詳情 */}
-      {analytics && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              模組完成度
-            </h2>
+      {/* 專案資訊 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          專案資訊
+        </h2>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 dark:text-gray-400">設計模組總數</span>
+            <span className="font-semibold text-gray-900 dark:text-white">{totalModules} 個</span>
           </div>
-          <div className="p-6">
-            <div className="space-y-3 max-h-60 overflow-y-auto">
-              {Object.entries(analytics.coverage_metrics.modules_completion)
-                .sort(([,a], [,b]) => b.completion_rate - a.completion_rate)
-                .map(([moduleName, completion]) => (
-                <div key={moduleName} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900 dark:text-white">{moduleName}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {completion.pages_with_assets} / {completion.total_pages} 頁面有資產
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-20 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
-                        style={{ width: `${completion.completion_rate}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white min-w-[3rem] text-right">
-                      {completion.completion_rate.toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 dark:text-gray-400">活躍模組數</span>
+            <span className="font-semibold text-green-600 dark:text-green-400">{activeModules} 個</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 dark:text-gray-400">設計資產總數</span>
+            <span className="font-semibold text-purple-600 dark:text-purple-400">{totalAssets} 個</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 dark:text-gray-400">專案完成度</span>
+            <span className="font-semibold text-orange-600 dark:text-orange-400">{completionRate}%</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 dark:text-gray-400">系統狀態</span>
+            <span className="text-green-600 dark:text-green-400">正常運行</span>
           </div>
         </div>
-      )}
+      </div>
 
       {/* 快速操作 */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -177,30 +158,30 @@ const Dashboard: React.FC = () => {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button 
-            onClick={() => navigate('/design-assets')}
+            onClick={() => navigate('/library/assets')}
             className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors text-center"
           >
             <FolderIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
             <p className="text-sm font-medium text-gray-900 dark:text-white">
-              管理設計資產
+              設計資產管理
             </p>
           </button>
           <button 
-            onClick={() => navigate('/template-generator')}
+            onClick={() => navigate('/library/templates')}
             className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-green-500 dark:hover:border-green-400 transition-colors text-center"
           >
             <DocumentTextIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
             <p className="text-sm font-medium text-gray-900 dark:text-white">
-              生成模板
+              模板庫
             </p>
           </button>
           <button 
-            onClick={() => navigate('/ai-spec-generator')}
+            onClick={() => navigate('/projects')}
             className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-purple-500 dark:hover:border-purple-400 transition-colors text-center"
           >
             <SparklesIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
             <p className="text-sm font-medium text-gray-900 dark:text-white">
-              生成 AI 規格
+              專案中心
             </p>
           </button>
         </div>

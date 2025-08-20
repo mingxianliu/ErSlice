@@ -25,6 +25,7 @@ interface DesignModulesState {
   page: number
   pageSize: number
   viewArchived: boolean
+  projectFilter: string // 新增專案過濾
 
   // derived helpers (selectors can compute on demand in component)
 
@@ -40,6 +41,7 @@ interface DesignModulesState {
   setSort: (by: SortBy, dir?: SortDir) => void
   setPage: (p: number) => void
   setPageSize: (s: number) => void
+  setProjectFilter: (p: string) => void // 新增設定專案過濾
 }
 
 const fallbackModules: DesignModule[] = [
@@ -48,6 +50,9 @@ const fallbackModules: DesignModule[] = [
     name: '用戶管理模組',
     description: '用戶註冊、登入、權限管理等功能',
     asset_count: 15,
+    project_slugs: ['demo-project', 'ecommerce-shop'],
+    primary_project: 'demo-project',
+    created_from: 'manual',
     last_updated: '2024-08-18 10:00',
     status: 'active',
   },
@@ -58,6 +63,9 @@ const fallbackModules: DesignModule[] = [
     asset_count: 12,
     last_updated: '2024-08-17 16:20',
     status: 'active',
+    project_slugs: ['ecommerce-shop'],
+    primary_project: 'ecommerce-shop',
+    created_from: 'manual',
   },
   {
     id: '3',
@@ -66,6 +74,9 @@ const fallbackModules: DesignModule[] = [
     asset_count: 8,
     last_updated: '2024-08-16 09:10',
     status: 'active',
+    project_slugs: ['ecommerce-shop', 'sample-website'],
+    primary_project: 'ecommerce-shop',
+    created_from: 'template',
   },
   {
     id: '4',
@@ -74,6 +85,9 @@ const fallbackModules: DesignModule[] = [
     asset_count: 6,
     last_updated: '2024-08-15 12:00',
     status: 'draft',
+    project_slugs: ['dashboard-admin'],
+    primary_project: 'dashboard-admin',
+    created_from: 'figma-import',
   },
 ]
 
@@ -90,6 +104,7 @@ export const useDesignModulesStore = create<DesignModulesState>((set, get) => ({
   page: 1,
   pageSize: 9,
   viewArchived: false,
+  projectFilter: 'all', // 預設顯示所有專案
 
   init: async () => {
     if (get().loading) return
@@ -152,11 +167,12 @@ export const useDesignModulesStore = create<DesignModulesState>((set, get) => ({
   })),
   setPage: (p) => set({ page: p }),
   setPageSize: (s) => set({ pageSize: s, page: 1 }),
+  setProjectFilter: (p) => set({ projectFilter: p, page: 1 }),
 }))
 
 // Helper selectors
 export function selectFilteredSorted(state: DesignModulesState): DesignModule[] {
-  const { modules, query, status, sortBy, sortDir } = state
+  const { modules, query, status, sortBy, sortDir, projectFilter } = state
   const q = query.trim().toLowerCase()
 
   let list = modules.filter((m) => {
@@ -164,7 +180,10 @@ export function selectFilteredSorted(state: DesignModulesState): DesignModule[] 
     const passQuery = q
       ? m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q)
       : true
-    return passStatus && passQuery
+    const passProject = projectFilter === 'all' 
+      ? true 
+      : m.project_slugs?.includes(projectFilter) || m.primary_project === projectFilter
+    return passStatus && passQuery && passProject
   })
 
   list.sort((a, b) => {

@@ -1,7 +1,23 @@
 // ErSlice Tauri 命令調用工具
 
-import { invoke } from '@tauri-apps/api/core'
 import { handleTauriError, getUserFriendlyMessage } from './errorHandler'
+
+// 動態導入 Tauri API 以支援瀏覽器環境
+let invoke: any = null
+
+try {
+  // 嘗試導入 Tauri API
+  import('@tauri-apps/api/core').then(({ invoke: tauriInvoke }) => {
+    invoke = tauriInvoke
+  })
+} catch (error) {
+  console.log('Tauri API 不可用，運行在瀏覽器環境')
+}
+
+// 檢查是否在 Tauri 環境中
+export const isTauriEnvironment = () => {
+  return typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined
+}
 
 // 設計模組介面
 export interface DesignModule {
@@ -11,6 +27,10 @@ export interface DesignModule {
   asset_count: number
   last_updated: string
   status: string
+  // 新增專案相關字段
+  project_slugs?: string[] // 使用這個模組的專案列表
+  primary_project?: string // 主要所屬專案
+  created_from?: 'manual' | 'figma-import' | 'template' // 模組來源
 }
 
 // 資產清單介面
@@ -504,6 +524,19 @@ export async function applyCrudSubpages(moduleName: string, parentSlug: string):
 export interface ProjectListItem { slug: string; name: string }
 
 export async function listProjects(): Promise<ProjectListItem[]> {
+  if (!isTauriEnvironment()) {
+    console.log('瀏覽器環境 - 返回模擬專案列表')
+    // 在瀏覽器環境中返回模擬數據
+    return [
+      { slug: 'demo-project', name: '示範專案' },
+      { slug: 'sample-website', name: '範例網站' }
+    ]
+  }
+  
+  if (!invoke) {
+    throw new Error('Tauri API 尚未初始化')
+  }
+  
   try {
     return await invoke<ProjectListItem[]>('list_projects')
   } catch (error) {
@@ -513,6 +546,22 @@ export async function listProjects(): Promise<ProjectListItem[]> {
 }
 
 export async function createProject(slug: string, name: string): Promise<TauriProjectConfig> {
+  if (!isTauriEnvironment()) {
+    console.log('瀏覽器環境 - 模擬創建專案:', { slug, name })
+    // 在瀏覽器環境中返回模擬結果
+    await new Promise(resolve => setTimeout(resolve, 500)) // 模擬延遲
+    return {
+      name,
+      slug,
+      root_path: `/mock/projects/${slug}`,
+      created_at: new Date().toISOString()
+    } as TauriProjectConfig
+  }
+  
+  if (!invoke) {
+    throw new Error('Tauri API 尚未初始化')
+  }
+  
   try {
     return await invoke<TauriProjectConfig>('create_project', { slug, name })
   } catch (error) {
@@ -522,6 +571,16 @@ export async function createProject(slug: string, name: string): Promise<TauriPr
 }
 
 export async function deleteProject(slug: string): Promise<string> {
+  if (!isTauriEnvironment()) {
+    console.log('瀏覽器環境 - 模擬刪除專案:', slug)
+    await new Promise(resolve => setTimeout(resolve, 300)) // 模擬延遲
+    return `專案 ${slug} 已刪除（模擬）`
+  }
+  
+  if (!invoke) {
+    throw new Error('Tauri API 尚未初始化')
+  }
+  
   try {
     return await invoke<string>('delete_project', { slug })
   } catch (error) {
@@ -531,6 +590,21 @@ export async function deleteProject(slug: string): Promise<string> {
 }
 
 export async function switchProject(slug: string): Promise<TauriProjectConfig> {
+  if (!isTauriEnvironment()) {
+    console.log('瀏覽器環境 - 模擬切換專案:', slug)
+    await new Promise(resolve => setTimeout(resolve, 300)) // 模擬延遲
+    return {
+      name: slug === 'demo-project' ? '示範專案' : '範例網站',
+      slug,
+      root_path: `/mock/projects/${slug}`,
+      created_at: new Date().toISOString()
+    } as TauriProjectConfig
+  }
+  
+  if (!invoke) {
+    throw new Error('Tauri API 尚未初始化')
+  }
+  
   try {
     return await invoke<TauriProjectConfig>('switch_project', { slug })
   } catch (error) {

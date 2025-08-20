@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { XMarkIcon, ChartBarIcon } from '@heroicons/react/24/outline'
-import { analyzeSitemap, SitemapAnalytics } from '../utils/tauriCommands'
+import { analyzeSitemap, SitemapAnalytics } from '../utils/tauriCommands.ts'
 import { useToast } from './ui/Toast'
 
 interface SitemapAnalyticsModalProps {

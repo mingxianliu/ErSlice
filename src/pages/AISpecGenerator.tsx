@@ -1,646 +1,870 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
-  DocumentTextIcon, 
-  CogIcon, 
-  DocumentDuplicateIcon,
-  SparklesIcon,
+  SparklesIcon, 
+  MagnifyingGlassIcon,
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  ArrowPathIcon,
+  CalendarIcon,
+  ClockIcon,
   EyeIcon,
-  CpuChipIcon,
-  ShieldCheckIcon,
-  ChartBarIcon,
-  BeakerIcon
+  CodeBracketIcon,
+  DocumentTextIcon,
+  CogIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline'
-import { templates } from '../data/templates'
-import { createAISpecGenerator } from '../services/aiSpecGenerator'
-import { AISpecType, AISpecFormat, AISpecConfig } from '../types/aiSpec'
-import { useToast } from '../components/ui/Toast'
+import { AISpecType, AISpecFormat } from '../types/aiSpec'
 
-// AI 說明類型選項
-const aiSpecTypes = [
-  { 
-    id: AISpecType.BASIC, 
-    name: '基礎說明', 
-    description: '提供基礎的開發指導和實現步驟',
-    icon: DocumentTextIcon,
-    color: 'bg-blue-500'
-  },
-  { 
-    id: AISpecType.INTERACTIVE, 
-    name: '互動說明', 
-    description: '詳細說明互動功能實現和狀態管理',
-    icon: CogIcon,
-    color: 'bg-green-500'
-  },
-  { 
-    id: AISpecType.RESPONSIVE, 
-    name: '響應式說明', 
-    description: '詳細說明響應式設計實現和佈局策略',
-    icon: EyeIcon,
-    color: 'bg-purple-500'
-  },
-  { 
-    id: AISpecType.FULL_GUIDE, 
-    name: '完整指南', 
-    description: '提供從設計到部署的完整開發指南',
-    icon: DocumentDuplicateIcon,
-    color: 'bg-orange-500'
-  },
-  { 
-    id: AISpecType.COMPONENT_SPEC, 
-    name: '組件規格', 
-    description: '詳細的組件 API 規格和實現指南',
-    icon: CpuChipIcon,
-    color: 'bg-indigo-500'
-  },
-  { 
-    id: AISpecType.ACCESSIBILITY, 
-    name: '無障礙說明', 
-    description: '詳細說明無障礙設計實現和 WCAG 指南',
-    icon: ShieldCheckIcon,
-    color: 'bg-teal-500'
-  },
-  { 
-    id: AISpecType.PERFORMANCE, 
-    name: '性能說明', 
-    description: '詳細說明性能優化策略和監控方法',
-    icon: ChartBarIcon,
-    color: 'bg-pink-500'
-  },
-  { 
-    id: AISpecType.TESTING, 
-    name: '測試說明', 
-    description: '詳細說明測試策略和實現方法',
-    icon: BeakerIcon,
-    color: 'bg-yellow-500'
-  }
-]
+// AI規格介面
+interface AISpec {
+  id: string
+  name: string
+  description: string
+  type: AISpecType
+  format: AISpecFormat
+  category: string
+  tags: string[]
+  complexity: 'simple' | 'medium' | 'complex'
+  createdAt: string
+  updatedAt: string
+  author: string
+  usageCount: number
+  isCustom: boolean
+}
 
-// 輸出格式選項
-const outputFormats = [
-  { id: AISpecFormat.MARKDOWN, name: 'Markdown', description: '結構化的 Markdown 文檔' },
-  { id: AISpecFormat.HTML, name: 'HTML', description: '格式化的 HTML 文檔' },
-  { id: AISpecFormat.JSON, name: 'JSON', description: '結構化數據格式' },
-  { id: AISpecFormat.YAML, name: 'YAML', description: '易讀的配置格式' },
-  { id: AISpecFormat.CODE_SNIPPETS, name: '代碼片段', description: '實用的代碼示例' }
-]
+// 篩選選項
+interface FilterOptions {
+  type: AISpecType | 'all'
+  category: string | 'all'
+  complexity: 'simple' | 'medium' | 'complex' | 'all'
+  isCustom: boolean | 'all'
+}
 
-// 最近生成的 AI 說明
-const recentAISpecs = [
-  {
-    id: '1',
-    title: '基礎數據表格 - 基礎開發說明',
-    type: '基礎說明',
-    template: '基礎數據表格',
-    generatedAt: '2024-01-15 14:30',
-    status: 'completed'
-  },
-  {
-    id: '2',
-    title: '進階表單 - 互動功能開發說明',
-    type: '互動說明',
-    template: '進階表單',
-    generatedAt: '2024-01-15 13:45',
-    status: 'completed'
-  },
-  {
-    id: '3',
-    title: '響應式佈局 - 響應式設計說明',
-    type: '響應式說明',
-    template: '響應式佈局',
-    generatedAt: '2024-01-15 12:20',
-    status: 'completed'
-  }
-]
-
+// 視覺切版工廠AI規格庫頁面
 const AISpecGenerator: React.FC = () => {
-  const { showSuccess, showError } = useToast()
-  const [selectedType, setSelectedType] = useState<AISpecType>(AISpecType.BASIC)
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('')
-  const [selectedFormat, setSelectedFormat] = useState<AISpecFormat>(AISpecFormat.MARKDOWN)
-  const [additionalContext, setAdditionalContext] = useState('')
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedSpec, setGeneratedSpec] = useState<any>(null)
+  // 列表狀態
+  const [specList, setSpecList] = useState<AISpec[]>([])
+  const [filteredSpecs, setFilteredSpecs] = useState<AISpec[]>([])
+  const [loading, setLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState<FilterOptions>({
+    type: 'all',
+    category: 'all',
+    complexity: 'all',
+    isCustom: 'all'
+  })
+  
+  // 分頁狀態
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 5
+  const totalPages = Math.ceil(filteredSpecs.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentSpecs = filteredSpecs.slice(startIndex, endIndex)
+  
+  // 模態狀態
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [selectedSpec, setSelectedSpec] = useState<AISpec | null>(null)
+  
+  // 表單狀態
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    type: AISpecType.BASIC as AISpecType,
+    category: 'frontend',
+    complexity: 'simple' as 'simple' | 'medium' | 'complex',
+    tags: [] as string[]
+  })
 
-  // 生成 AI 說明
-  const handleGenerate = async () => {
-    if (!selectedTemplate) {
-      showError('請選擇設計模板', '請先選擇一個設計模板來生成 AI 說明')
+  // 載入AI規格數據
+  const loadSpecs = async () => {
+    setLoading(true)
+    try {
+      // 模擬示範數據
+      const baseSpecs: AISpec[] = [
+        {
+          id: 'responsive-design',
+          name: '響應式設計規格',
+          description: 'RWD響應式網頁設計開發規範，包含斷點設置、彈性佈局、媒體查詢等詳細說明',
+          type: AISpecType.RESPONSIVE,
+          format: AISpecFormat.MARKDOWN,
+          category: 'frontend',
+          tags: ['RWD', '響應式', '佈局', 'CSS'],
+          complexity: 'medium',
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          updatedAt: new Date().toISOString(),
+          author: '系統預設',
+          usageCount: 156,
+          isCustom: false
+        },
+        {
+          id: 'payment-system',
+          name: '支付系統整合規格',
+          description: '電商支付流程開發規範，包含第三方支付、訂單處理、安全驗證等完整指南',
+          type: AISpecType.FULL_GUIDE,
+          format: AISpecFormat.JSON,
+          category: 'backend',
+          tags: ['支付', '電商', '安全', 'API'],
+          complexity: 'complex',
+          createdAt: new Date(Date.now() - 172800000).toISOString(),
+          updatedAt: new Date(Date.now() - 3600000).toISOString(),
+          author: '系統預設',
+          usageCount: 89,
+          isCustom: false
+        },
+        {
+          id: 'component-library',
+          name: '組件庫設計規格',
+          description: 'React組件庫開發規範，包含設計系統、TypeScript定義、測試策略等',
+          type: AISpecType.COMPONENT_SPEC,
+          format: AISpecFormat.MARKDOWN,
+          category: 'frontend',
+          tags: ['React', '組件', 'TypeScript', '設計系統'],
+          complexity: 'complex',
+          createdAt: new Date(Date.now() - 259200000).toISOString(),
+          updatedAt: new Date(Date.now() - 86400000).toISOString(),
+          author: '自定義',
+          usageCount: 234,
+          isCustom: true
+        },
+        {
+          id: 'auth-system',
+          name: '認證授權系統規格',
+          description: '用戶認證與授權系統開發規範，包含JWT、OAuth2.0、權限控制等',
+          type: AISpecType.INTERACTIVE,
+          format: AISpecFormat.JSON,
+          category: 'security',
+          tags: ['認證', '授權', 'JWT', 'OAuth'],
+          complexity: 'complex',
+          createdAt: new Date(Date.now() - 345600000).toISOString(),
+          updatedAt: new Date(Date.now() - 172800000).toISOString(),
+          author: '系統預設',
+          usageCount: 112,
+          isCustom: false
+        },
+        {
+          id: 'database-design',
+          name: '資料庫設計規格',
+          description: 'MongoDB與PostgreSQL資料庫設計規範，包含Schema設計、索引優化、查詢效能等',
+          type: AISpecType.BASIC,
+          format: AISpecFormat.MARKDOWN,
+          category: 'database',
+          tags: ['資料庫', 'MongoDB', 'PostgreSQL', '效能'],
+          complexity: 'medium',
+          createdAt: new Date(Date.now() - 432000000).toISOString(),
+          updatedAt: new Date(Date.now() - 259200000).toISOString(),
+          author: '自定義',
+          usageCount: 67,
+          isCustom: true
+        },
+        {
+          id: 'api-documentation',
+          name: 'API文件規格',
+          description: 'RESTful API文件撰寫規範，包含OpenAPI規格、請求範例、錯誤處理等',
+          type: AISpecType.BASIC,
+          format: AISpecFormat.JSON,
+          category: 'backend',
+          tags: ['API', 'REST', 'OpenAPI', '文件'],
+          complexity: 'simple',
+          createdAt: new Date(Date.now() - 518400000).toISOString(),
+          updatedAt: new Date(Date.now() - 345600000).toISOString(),
+          author: '系統預設',
+          usageCount: 145,
+          isCustom: false
+        }
+      ]
+      
+      setSpecList(baseSpecs)
+      setFilteredSpecs(baseSpecs)
+    } catch (error) {
+      console.error('載入AI規格失敗:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadSpecs()
+  }, [])
+  
+  // 搜尋和篩選
+  useEffect(() => {
+    let filtered = specList
+    
+    // 搜尋
+    if (searchQuery) {
+      filtered = filtered.filter(spec => 
+        spec.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        spec.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        spec.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        spec.category.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+    
+    // 類型篩選
+    if (filters.type !== 'all') {
+      filtered = filtered.filter(spec => spec.type === filters.type)
+    }
+    
+    // 分類篩選
+    if (filters.category !== 'all') {
+      filtered = filtered.filter(spec => spec.category === filters.category)
+    }
+    
+    // 複雜度篩選
+    if (filters.complexity !== 'all') {
+      filtered = filtered.filter(spec => spec.complexity === filters.complexity)
+    }
+    
+    // 自定義篩選
+    if (filters.isCustom !== 'all') {
+      filtered = filtered.filter(spec => spec.isCustom === filters.isCustom)
+    }
+    
+    setFilteredSpecs(filtered)
+    setCurrentPage(1)
+  }, [specList, searchQuery, filters])
+
+  // AI規格操作
+  const handleCreateSpec = () => {
+    if (!formData.name.trim()) {
+      alert('請輸入規格名稱')
       return
     }
-
-    setIsGenerating(true)
     
-    try {
-      // 獲取選中的模板
-      const template = templates.find(t => t.id === selectedTemplate)
-      if (!template) {
-        throw new Error('找不到選中的模板')
-      }
-
-      // 創建 AI 說明生成器
-      const config: AISpecConfig = {
-        includeExamples: true,
-        includeCodeSnippets: true,
-        includeDiagrams: true,
-        includeBestPractices: true,
-        includeCommonMistakes: true,
-        includePerformanceTips: true,
-        includeAccessibilityGuidelines: true,
-        language: 'zh-TW',
-        framework: 'vanilla',
-        cssFramework: 'tailwind'
-      }
-
-      const generator = createAISpecGenerator(config)
-      
-      // 生成 AI 說明
-      const spec = await generator.generateAISpec(
-        selectedType,
-        template,
-        additionalContext
-      )
-
-      setGeneratedSpec(spec)
-      showSuccess('AI 說明生成成功', `已成功生成 ${spec.title}`)
-      
-      // 顯示生成結果
-      console.log('生成的 AI 說明:', spec)
-      
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '未知錯誤'
-      showError('生成失敗', `生成 AI 說明時發生錯誤: ${errorMessage}`)
-    } finally {
-      setIsGenerating(false)
+    const newSpec: AISpec = {
+      id: `custom-${Date.now()}`,
+      name: formData.name,
+      description: formData.description || '自定義AI規格',
+      type: formData.type,
+      format: AISpecFormat.MARKDOWN,
+      category: formData.category,
+      tags: formData.tags,
+      complexity: formData.complexity,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      author: '目前用戶',
+      usageCount: 0,
+      isCustom: true
     }
-  }
-
-  // 下載生成的說明
-  const handleDownload = (format: AISpecFormat) => {
-    if (!generatedSpec) return
-
-    let content = ''
-    let filename = ''
-    let mimeType = ''
-
-    switch (format) {
-      case AISpecFormat.MARKDOWN:
-        content = generateMarkdownContent(generatedSpec)
-        filename = `${generatedSpec.title}.md`
-        mimeType = 'text/markdown'
-        break
-      case AISpecFormat.HTML:
-        content = generateHTMLContent(generatedSpec)
-        filename = `${generatedSpec.title}.html`
-        mimeType = 'text/html'
-        break
-      case AISpecFormat.JSON:
-        content = JSON.stringify(generatedSpec, null, 2)
-        filename = `${generatedSpec.title}.json`
-        mimeType = 'application/json'
-        break
-      case AISpecFormat.YAML:
-        content = generateYAMLContent(generatedSpec)
-        filename = `${generatedSpec.title}.yml`
-        mimeType = 'text/yaml'
-        break
-      default:
-        content = generateMarkdownContent(generatedSpec)
-        filename = `${generatedSpec.title}.md`
-        mimeType = 'text/markdown'
-    }
-
-    // 創建下載連結
-    const blob = new Blob([content], { type: mimeType })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-
-    showSuccess('下載成功', `已下載 ${filename}`)
-  }
-
-  // 生成 Markdown 內容
-  const generateMarkdownContent = (spec: any): string => {
-    let content = `# ${spec.title}\n\n`
-    content += `${spec.description}\n\n`
-    content += `## 基本信息\n\n`
-    content += `- **類型**: ${spec.type}\n`
-    content += `- **複雜度**: ${spec.complexity}\n`
-    content += `- **格式**: ${spec.format}\n`
-    content += `- **預估時間**: ${spec.estimatedTime}\n`
-    content += `- **標籤**: ${spec.tags.join(', ')}\n\n`
     
-    if (spec.content.overview) {
-      content += `## 概述\n\n${spec.content.overview}\n\n`
-    }
-
-    if (spec.content.requirements) {
-      content += `## 前置要求\n\n`
-      spec.content.requirements.forEach((req: string) => {
-        content += `- ${req}\n`
-      })
-      content += `\n`
-    }
-
-    if (spec.content.steps) {
-      content += `## 實現步驟\n\n`
-      spec.content.steps.forEach((step: string, index: number) => {
-        content += `${index + 1}. ${step}\n`
-      })
-      content += `\n`
-    }
-
-    if (spec.content.notes) {
-      content += `## 注意事項\n\n`
-      spec.content.notes.forEach((note: string) => {
-        content += `- ${note}\n`
-      })
-      content += `\n`
-    }
-
-    return content
+    setSpecList(prev => [newSpec, ...prev])
+    setShowCreateModal(false)
+    setFormData({ 
+      name: '', 
+      description: '', 
+      type: AISpecType.BASIC, 
+      category: 'frontend', 
+      complexity: 'simple', 
+      tags: [] 
+    })
   }
-
-  // 生成 HTML 內容
-  const generateHTMLContent = (spec: any): string => {
-    let content = `<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${spec.title}</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
-        h1 { color: #1f2937; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
-        h2 { color: #374151; margin-top: 30px; }
-        .meta { background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0; }
-        .meta-item { margin: 5px 0; }
-        .tag { display: inline-block; background: #e5e7eb; padding: 2px 8px; border-radius: 12px; margin: 2px; font-size: 12px; }
-        ul { padding-left: 20px; }
-        li { margin: 5px 0; }
-    </style>
-</head>
-<body>
-    <h1>${spec.title}</h1>
-    <p>${spec.description}</p>
-    
-    <div class="meta">
-        <div class="meta-item"><strong>類型:</strong> ${spec.type}</div>
-        <div class="meta-item"><strong>複雜度:</strong> ${spec.complexity}</div>
-        <div class="meta-item"><strong>預估時間:</strong> ${spec.estimatedTime}</div>
-        <div class="meta-item"><strong>標籤:</strong> ${spec.tags.map((tag: string) => `<span class="tag">${tag}</span>`).join(' ')}</div>
-    </div>`
-
-    if (spec.content.overview) {
-      content += `
-    <h2>概述</h2>
-    <p>${spec.content.overview}</p>`
-    }
-
-    if (spec.content.requirements) {
-      content += `
-    <h2>前置要求</h2>
-    <ul>
-        ${spec.content.requirements.map((req: string) => `<li>${req}</li>`).join('')}
-    </ul>`
-    }
-
-    if (spec.content.steps) {
-      content += `
-    <h2>實現步驟</h2>
-    <ol>
-        ${spec.content.steps.map((step: string) => `<li>${step}</li>`).join('')}
-    </ol>`
-    }
-
-    if (spec.content.notes) {
-      content += `
-    <h2>注意事項</h2>
-    <ul>
-        ${spec.content.notes.map((note: string) => `<li>${note}</li>`).join('')}
-    </ul>`
-    }
-
-    content += `
-</body>
-</html>`
-
-    return content
+  
+  const handleDeleteSpec = (spec: AISpec) => {
+    if (!confirm(`刪除AI規格 ${spec.name}？`)) return
+    setSpecList(prev => prev.filter(s => s.id !== spec.id))
   }
-
-  // 生成 YAML 內容
-  const generateYAMLContent = (spec: any): string => {
-    let content = `title: "${spec.title}"
-description: "${spec.description}"
-type: ${spec.type}
-complexity: ${spec.complexity}
-format: ${spec.format}
-estimatedTime: "${spec.estimatedTime}"
-tags:
-${spec.tags.map((tag: string) => `  - ${tag}`).join('\n')}
-createdAt: "${spec.createdAt}"
-updatedAt: "${spec.updatedAt}"
-
-content:
-  overview: |
-    ${spec.content.overview || ''}`
-
-    if (spec.content.requirements) {
-      content += `
-  requirements:
-${spec.content.requirements.map((req: string) => `    - ${req}`).join('\n')}`
+  
+  // 獲取類型標籤
+  const getTypeLabel = (type: AISpecType) => {
+    switch (type) {
+      case AISpecType.BASIC: return '基礎說明'
+      case AISpecType.INTERACTIVE: return '互動說明'
+      case AISpecType.RESPONSIVE: return '響應式說明'
+      case AISpecType.FULL_GUIDE: return '完整指南'
+      case AISpecType.COMPONENT_SPEC: return '組件規格'
+      default: return type
     }
-
-    if (spec.content.steps) {
-      content += `
-  steps:
-${spec.content.steps.map((step: string) => `    - ${step}`).join('\n')}`
+  }
+  
+  // 獲取分類標籤
+  const getCategoryLabel = (category: string) => {
+    switch (category) {
+      case 'frontend': return '前端開發'
+      case 'backend': return '後端開發'
+      case 'database': return '資料庫'
+      case 'security': return '安全性'
+      case 'devops': return 'DevOps'
+      case 'testing': return '測試'
+      default: return category
     }
-
-    if (spec.content.notes) {
-      content += `
-  notes:
-${spec.content.notes.map((note: string) => `    - ${note}`).join('\n')}`
+  }
+  
+  // 獲取複雜度樣式
+  const getComplexityColor = (complexity: string) => {
+    switch (complexity) {
+      case 'simple': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+      case 'complex': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
     }
-
-    return content
+  }
+  
+  const getComplexityLabel = (complexity: string) => {
+    switch (complexity) {
+      case 'simple': return '簡單'
+      case 'medium': return '中等'
+      case 'complex': return '複雜'
+      default: return complexity
+    }
+  }
+  
+  // 格式化日期
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('zh-TW')
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 min-h-full bg-gray-50 dark:bg-gray-900">
       {/* 頁面標題 */}
-      <div className="flex items-center space-x-3">
-        <SparklesIcon className="h-8 w-8 text-purple-600" />
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            AI 說明生成器
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            為設計模板生成詳細的 AI 開發指導說明
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <SparklesIcon className="h-8 w-8 text-blue-600" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              AI規格庫
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              AI開發規格管理、瀏覽和使用預設的開發說明
+            </p>
+          </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 左側：配置面板 */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* AI 說明類型選擇 */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              選擇 AI 說明類型
-            </h3>
-            <div className="space-y-3">
-              {aiSpecTypes.map((type) => (
-                <label
-                  key={type.id}
-                  className={`flex items-start space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                    selectedType === type.id
-                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="aiSpecType"
-                    value={type.id}
-                    checked={selectedType === type.id}
-                    onChange={(e) => setSelectedType(e.target.value as AISpecType)}
-                    className="mt-1 text-purple-600 focus:ring-purple-500"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <type.icon className={`h-5 w-5 ${type.color} text-white rounded p-1`} />
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {type.name}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {type.description}
-                    </p>
-                  </div>
-                </label>
-              ))}
-            </div>
+      
+      {/* 自定義AI規格功能 - 放在最上方 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <PlusIcon className="h-5 w-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              自定義AI規格
+            </h2>
           </div>
-
-          {/* 設計模板選擇 */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              選擇設計模板
-            </h3>
-            <select
-              value={selectedTemplate}
-              onChange={(e) => setSelectedTemplate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              aria-label="選擇設計模板"
-              title="選擇設計模板"
-            >
-              <option value="">請選擇模板</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name} ({template.category})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 輸出格式選擇 */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              輸出格式
-            </h3>
-            <div className="space-y-2">
-              {outputFormats.map((format) => (
-                <label
-                  key={format.id}
-                  className="flex items-center space-x-3 cursor-pointer"
-                >
-                  <input
-                    type="radio"
-                    name="outputFormat"
-                    value={format.id}
-                    checked={selectedFormat === format.id}
-                    onChange={(e) => setSelectedFormat(e.target.value as AISpecFormat)}
-                    className="text-purple-600 focus:ring-purple-500"
-                  />
-                  <div>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {format.name}
-                    </span>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {format.description}
-                    </p>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* 額外需求 */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              額外需求（可選）
-            </h3>
-            <textarea
-              value={additionalContext}
-              onChange={(e) => setAdditionalContext(e.target.value)}
-              placeholder="描述額外的功能需求、設計偏好或特殊要求..."
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
-            />
-          </div>
-
-          {/* 生成按鈕 */}
           <button
-            onClick={handleGenerate}
-            disabled={isGenerating || !selectedTemplate}
-            className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+            onClick={() => setShowCreateModal(true)}
+            className="btn-primary flex items-center"
           >
-            {isGenerating ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                <span>生成中...</span>
-              </>
-            ) : (
-              <>
-                <SparklesIcon className="h-5 w-5" />
-                <span>生成 AI 說明</span>
-              </>
-            )}
+            <PlusIcon className="h-4 w-4 mr-2" />
+            新建規格
           </button>
         </div>
+        <p className="text-gray-600 dark:text-gray-400">
+          根據您的特定需求自定義AI開發規格參數，或選擇下方的預設規格進行使用。
+        </p>
+      </div>
 
-        {/* 右側：結果顯示 */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* 生成結果 */}
-          {generatedSpec && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  生成結果
-                </h3>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleDownload(selectedFormat)}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    下載 {selectedFormat}
-                  </button>
-                  <button
-                    onClick={() => setGeneratedSpec(null)}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    清除
-                  </button>
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 max-h-96 overflow-y-auto">
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
-                  {generatedSpec.title}
-                </h4>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  {generatedSpec.description}
-                </p>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">類型:</span>
-                    <span className="ml-2 text-gray-600 dark:text-gray-400">{generatedSpec.type}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">複雜度:</span>
-                    <span className="ml-2 text-gray-600 dark:text-gray-400">{generatedSpec.complexity}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">預估時間:</span>
-                    <span className="ml-2 text-gray-600 dark:text-gray-400">{generatedSpec.estimatedTime}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">標籤:</span>
-                    <span className="ml-2 text-gray-600 dark:text-gray-400">{generatedSpec.tags.join(', ')}</span>
-                  </div>
-                </div>
-
-                {generatedSpec.content.overview && (
-                  <div className="mt-4">
-                    <h5 className="font-medium text-gray-900 dark:text-white mb-2">概述</h5>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm whitespace-pre-line">
-                      {generatedSpec.content.overview}
-                    </p>
-                  </div>
-                )}
-
-                {generatedSpec.content.requirements && (
-                  <div className="mt-4">
-                    <h5 className="font-medium text-gray-900 dark:text-white mb-2">前置要求</h5>
-                    <ul className="list-disc list-inside text-gray-600 dark:text-gray-400 text-sm space-y-1">
-                      {generatedSpec.content.requirements.map((req: string, index: number) => (
-                        <li key={index}>{req}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {generatedSpec.content.steps && (
-                  <div className="mt-4">
-                    <h5 className="font-medium text-gray-900 dark:text-white mb-2">實現步驟</h5>
-                    <ol className="list-decimal list-inside text-gray-600 dark:text-gray-400 text-sm space-y-1">
-                      {generatedSpec.content.steps.map((step: string, index: number) => (
-                        <li key={index}>{step}</li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* 最近生成的 AI 說明 */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              最近生成的 AI 說明
-            </h3>
-            <div className="space-y-3">
-              {recentAISpecs.map((spec) => (
-                <div
-                  key={spec.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 dark:text-white">
-                      {spec.title}
-                    </h4>
-                    <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      <span>{spec.type}</span>
-                      <span>•</span>
-                      <span>{spec.template}</span>
-                      <span>•</span>
-                      <span>{spec.generatedAt}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      spec.status === 'completed' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                    }`}>
-                      {spec.status === 'completed' ? '已完成' : '處理中'}
-                    </span>
-                    <button className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300">
-                      查看
-                    </button>
-                  </div>
-                </div>
+      {/* 列表工具列 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* 搜尋 */}
+          <div className="flex-1 relative">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="搜尋AI規格名稱、描述、分類或標籤..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </div>
+          
+          {/* 篩選 */}
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={filters.type}
+              onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value as AISpecType | 'all' }))}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="all">所有類型</option>
+              {Object.values(AISpecType).map(type => (
+                <option key={type} value={type}>{getTypeLabel(type)}</option>
               ))}
-            </div>
+            </select>
+            
+            <select
+              value={filters.category}
+              onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="all">所有分類</option>
+              <option value="frontend">前端開發</option>
+              <option value="backend">後端開發</option>
+              <option value="database">資料庫</option>
+              <option value="security">安全性</option>
+              <option value="devops">DevOps</option>
+              <option value="testing">測試</option>
+            </select>
+            
+            <select
+              value={filters.complexity}
+              onChange={(e) => setFilters(prev => ({ ...prev, complexity: e.target.value as 'simple' | 'medium' | 'complex' | 'all' }))}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="all">所有複雜度</option>
+              <option value="simple">簡單</option>
+              <option value="medium">中等</option>
+              <option value="complex">複雜</option>
+            </select>
+            
+            <select
+              value={filters.isCustom === 'all' ? 'all' : filters.isCustom ? 'custom' : 'preset'}
+              onChange={(e) => {
+                const value = e.target.value === 'all' ? 'all' : e.target.value === 'custom' ? true : false
+                setFilters(prev => ({ ...prev, isCustom: value }))
+              }}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="all">所有規格</option>
+              <option value="preset">預設規格</option>
+              <option value="custom">自定義規格</option>
+            </select>
           </div>
         </div>
       </div>
+
+      {/* AI規格列表 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        {/* 列表標題 */}
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              AI規格列表 ({filteredSpecs.length})
+            </h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={loadSpecs}
+                disabled={loading}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                重新整理
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {/* 列表內容 */}
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="text-center py-12 text-gray-500">
+              <ArrowPathIcon className="h-8 w-8 animate-spin mx-auto mb-2" />
+              載入中...
+            </div>
+          ) : filteredSpecs.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <SparklesIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <div className="text-lg font-medium mb-2">
+                {specList.length === 0 ? '尚無AI規格' : '無符合條件的AI規格'}
+              </div>
+              <div className="text-sm">
+                {specList.length === 0 ? '點擊上方「新建規格」開始使用' : '請試著調整搜尋或篩選條件'}
+              </div>
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-800/50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    規格資訊
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    類型與分類
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    使用統計
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    時間
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    操作
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {currentSpecs.map((spec) => (
+                  <tr key={spec.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    {/* 規格資訊 */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                            <SparklesIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {spec.name}
+                            </div>
+                            {spec.isCustom && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                                自定義
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400 max-w-md truncate">{spec.description}</div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {spec.tags.slice(0, 3).map(tag => (
+                              <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                {tag}
+                              </span>
+                            ))}
+                            {spec.tags.length > 3 && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                +{spec.tags.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    
+                    {/* 類型與分類 */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="space-y-1">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                          {getTypeLabel(spec.type)}
+                        </span>
+                        <br />
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                          {getCategoryLabel(spec.category)}
+                        </span>
+                        <br />
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getComplexityColor(spec.complexity)}`}>
+                          {getComplexityLabel(spec.complexity)}
+                        </span>
+                      </div>
+                    </td>
+                    
+                    {/* 使用統計 */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <div className="space-y-1">
+                        <div>使用次數: {spec.usageCount}</div>
+                        <div>作者: {spec.author}</div>
+                        <div>格式: {spec.format}</div>
+                      </div>
+                    </td>
+                    
+                    {/* 時間 */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <div className="space-y-1">
+                        <div className="flex items-center">
+                          <CalendarIcon className="h-4 w-4 mr-1" />
+                          建立: {formatDate(spec.createdAt)}
+                        </div>
+                        <div className="flex items-center">
+                          <ClockIcon className="h-4 w-4 mr-1" />
+                          更新: {formatDate(spec.updatedAt)}
+                        </div>
+                      </div>
+                    </td>
+                    
+                    {/* 操作 */}
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-1 flex-wrap">
+                        <button className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-800/40 dark:hover:text-blue-200">
+                          <EyeIcon className="h-3 w-3 mr-1" />
+                          預覽
+                        </button>
+                        <button className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-800/40 dark:hover:text-green-200">
+                          <CodeBracketIcon className="h-3 w-3 mr-1" />
+                          生成
+                        </button>
+                        {spec.isCustom && (
+                          <>
+                            <button 
+                              onClick={() => {
+                                setSelectedSpec(spec)
+                                setFormData({
+                                  name: spec.name,
+                                  description: spec.description,
+                                  type: spec.type,
+                                  category: spec.category,
+                                  complexity: spec.complexity,
+                                  tags: spec.tags
+                                })
+                                setShowEditModal(true)
+                              }}
+                              className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-800 dark:bg-gray-600/50 dark:text-gray-300 dark:hover:bg-gray-500/60 dark:hover:text-gray-200"
+                            >
+                              <PencilIcon className="h-3 w-3 mr-1" />
+                              編輯
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteSpec(spec)}
+                              className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-red-100 text-red-700 hover:bg-red-200 hover:text-red-800 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-800/40 dark:hover:text-red-200"
+                            >
+                              <TrashIcon className="h-3 w-3 mr-1" />
+                              刪除
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        
+        {/* 分頁控制 */}
+        {!loading && filteredSpecs.length > itemsPerPage && (
+          <div className="px-6 py-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                顯示第 {startIndex + 1} - {Math.min(endIndex, filteredSpecs.length)} 筆，共 {filteredSpecs.length} 筆AI規格
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  上一頁
+                </button>
+                
+                <div className="flex space-x-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                        page === currentPage
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                
+                <button
+                  onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  下一頁
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 建立規格模態 */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">建立自定義AI規格</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      規格名稱 *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="輸入規格名稱"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      規格類型
+                    </label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as AISpecType }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      {Object.values(AISpecType).map(type => (
+                        <option key={type} value={type}>{getTypeLabel(type)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    描述
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="輸入規格描述"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      分類
+                    </label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="frontend">前端開發</option>
+                      <option value="backend">後端開發</option>
+                      <option value="database">資料庫</option>
+                      <option value="security">安全性</option>
+                      <option value="devops">DevOps</option>
+                      <option value="testing">測試</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      複雜度
+                    </label>
+                    <select
+                      value={formData.complexity}
+                      onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value as 'simple' | 'medium' | 'complex' }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="simple">簡單</option>
+                      <option value="medium">中等</option>
+                      <option value="complex">複雜</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false)
+                    setFormData({ name: '', description: '', type: AISpecType.BASIC, category: 'frontend', complexity: 'simple', tags: [] })
+                  }}
+                  className="flex-1 btn-secondary"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleCreateSpec}
+                  disabled={!formData.name.trim()}
+                  className="flex-1 btn-primary disabled:opacity-50"
+                >
+                  建立
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 編輯規格模態 */}
+      {showEditModal && selectedSpec && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">編輯AI規格</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      規格名稱 *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      規格類型
+                    </label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as AISpecType }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      {Object.values(AISpecType).map(type => (
+                        <option key={type} value={type}>{getTypeLabel(type)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    描述
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      分類
+                    </label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="frontend">前端開發</option>
+                      <option value="backend">後端開發</option>
+                      <option value="database">資料庫</option>
+                      <option value="security">安全性</option>
+                      <option value="devops">DevOps</option>
+                      <option value="testing">測試</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      複雜度
+                    </label>
+                    <select
+                      value={formData.complexity}
+                      onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value as 'simple' | 'medium' | 'complex' }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="simple">簡單</option>
+                      <option value="medium">中等</option>
+                      <option value="complex">複雜</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowEditModal(false)
+                    setSelectedSpec(null)
+                    setFormData({ name: '', description: '', type: AISpecType.BASIC, category: 'frontend', complexity: 'simple', tags: [] })
+                  }}
+                  className="flex-1 btn-secondary"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    // TODO: 實作更新邏輯
+                    alert('更新功能尚未實作')
+                  }}
+                  className="flex-1 btn-primary"
+                >
+                  更新
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

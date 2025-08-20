@@ -33,19 +33,19 @@ const navigation: NavItem[] = [
     enabled: true,
   },
   {
-    name: '設計資源庫',
+    name: '設計資產',
+    href: '/design-assets',
+    icon: FolderIcon,
+    description: '設計稿和資源管理',
+    enabled: true,
+  },
+  {
+    name: '資源庫',
     href: '/library',
     icon: BuildingLibraryIcon,
-    description: '可復用的設計資源',
+    description: '模板與AI規格',
     enabled: true,
     children: [
-      {
-        name: '設計資產',
-        href: '/library/assets',
-        icon: FolderIcon,
-        description: '設計稿和資源管理',
-        enabled: true,
-      },
       {
         name: '模板庫',
         href: '/library/templates',
@@ -73,7 +73,7 @@ const navigation: NavItem[] = [
     name: '系統設定',
     href: '/settings',
     icon: Cog6ToothIcon,
-    description: '系統設定和偏好',
+    description: '應用程式設定',
     enabled: true,
   }
 ]
@@ -163,7 +163,7 @@ const Sidebar: React.FC = () => {
               if (img.src.endsWith('/favicon.png')) { img.src = '/favicon.svg' } else { img.style.display = 'none' }
             }}
           />
-          <span className="text-xl font-bold text-gray-900 dark:text-white">ErSlice</span>
+          <span className="text-xl font-bold text-gray-900 dark:text-white">視覺切版工廠</span>
         </div>
       </div>
 
@@ -179,12 +179,12 @@ const Sidebar: React.FC = () => {
                     // 有子選項的項目
                     <button
                       onClick={() => toggleExpanded(item.name)}
-                      className="w-full group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      className="w-full group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                     >
-                      <item.icon className="mr-3 h-5 w-5" />
-                      <div className="flex-1 text-left">
-                        <div className="font-medium">{item.name}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="font-medium whitespace-nowrap overflow-hidden text-ellipsis">{item.name}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap overflow-hidden text-ellipsis">
                           {item.description}
                         </div>
                       </div>
@@ -300,9 +300,9 @@ const Sidebar: React.FC = () => {
       {/* 底部資訊 */}
       <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200 dark:border-gray-700">
         <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-          ErSlice v1.0
+          視覺切版工廠 v1.0
           <br />
-          前端切版說明包生成器
+          智能視覺設計切版系統
         </div>
       </div>
     </div>
