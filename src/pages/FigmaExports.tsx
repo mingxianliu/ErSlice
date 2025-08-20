@@ -4,9 +4,6 @@ import {
   EyeIcon,
   ArrowDownTrayIcon,
   TrashIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon,
-  CalendarIcon,
   DocumentArrowDownIcon,
   FolderIcon,
   CheckCircleIcon,
@@ -14,6 +11,10 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline'
 import { useToast } from '../components/ui/Toast'
+import PageLayout from '../components/PageLayout'
+import SearchAndFilters from '../components/SearchAndFilters'
+import StatCard from '../components/StatCard'
+import Pagination from '../components/Pagination'
 
 // Figma 導出記錄介面
 interface FigmaExportRecord {
@@ -277,134 +278,106 @@ const FigmaExports: React.FC = () => {
     }
   }
 
-  return (
-    <div className="space-y-6 min-h-full bg-gray-50 dark:bg-gray-900">
-      {/* 頁面標題 */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <ArrowUpTrayIcon className="h-8 w-8 text-blue-600" />
-            Figma 導出記錄
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">管理和追蹤 Figma 格式導出記錄</p>
-        </div>
-
-        <button
-          onClick={loadExportRecords}
-          className="btn-secondary flex items-center gap-2"
-          disabled={loading}
+  const searchAndFiltersProps = (
+    <SearchAndFilters
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      searchPlaceholder="搜尋導出記錄..."
+      filters={[
+        // 狀態篩選
+        <select
+          key="status"
+          value={filters.status}
+          onChange={(e) => setFilters({...filters, status: e.target.value as any})}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
         >
-          <ArrowDownTrayIcon className="h-5 w-5" />
-          重新載入
-        </button>
-      </div>
+          <option value="all">所有狀態</option>
+          <option value="success">成功</option>
+          <option value="processing">處理中</option>
+          <option value="failed">失敗</option>
+        </select>,
+        
+        // 格式篩選
+        <select
+          key="format"
+          value={filters.format}
+          onChange={(e) => setFilters({...filters, format: e.target.value as any})}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+        >
+          <option value="all">所有格式</option>
+          <option value="figma-json">Figma JSON</option>
+          <option value="design-tokens">設計令牌</option>
+          <option value="component-kit">組件套件</option>
+        </select>,
+        
+        // 日期篩選
+        <select
+          key="dateRange"
+          value={filters.dateRange}
+          onChange={(e) => setFilters({...filters, dateRange: e.target.value as any})}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+        >
+          <option value="all">所有時間</option>
+          <option value="today">今天</option>
+          <option value="week">一週內</option>
+          <option value="month">一個月內</option>
+        </select>
+      ]}
+    />
+  )
 
-      {/* 搜尋和篩選 */}
-      <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* 搜尋 */}
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="搜尋導出記錄..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            />
-          </div>
+  const statsProps = (
+    <>
+      <StatCard
+        title="總導出記錄"
+        value={exportRecords.length}
+        description="所有導出記錄"
+        icon={FolderIcon}
+        color="blue"
+      />
+      <StatCard
+        title="成功導出"
+        value={exportRecords.filter(r => r.status === 'success').length}
+        description="完成的導出"
+        icon={CheckCircleIcon}
+        color="green"
+      />
+      <StatCard
+        title="處理中"
+        value={exportRecords.filter(r => r.status === 'processing').length}
+        description="正在處理"
+        icon={ClockIcon}
+        color="yellow"
+      />
+      <StatCard
+        title="失敗"
+        value={exportRecords.filter(r => r.status === 'failed').length}
+        description="導出失敗"
+        icon={XCircleIcon}
+        color="red"
+      />
+    </>
+  )
 
-          {/* 狀態篩選 */}
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters({...filters, status: e.target.value as any})}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-          >
-            <option value="all">所有狀態</option>
-            <option value="success">成功</option>
-            <option value="processing">處理中</option>
-            <option value="failed">失敗</option>
-          </select>
-
-          {/* 格式篩選 */}
-          <select
-            value={filters.format}
-            onChange={(e) => setFilters({...filters, format: e.target.value as any})}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-          >
-            <option value="all">所有格式</option>
-            <option value="figma-json">Figma JSON</option>
-            <option value="design-tokens">設計令牌</option>
-            <option value="component-kit">組件套件</option>
-          </select>
-
-          {/* 日期篩選 */}
-          <select
-            value={filters.dateRange}
-            onChange={(e) => setFilters({...filters, dateRange: e.target.value as any})}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-          >
-            <option value="all">所有時間</option>
-            <option value="today">今天</option>
-            <option value="week">一週內</option>
-            <option value="month">一個月內</option>
-          </select>
-        </div>
-      </div>
-
-      {/* 統計資訊 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {exportRecords.length}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">總導出記錄</div>
-            </div>
-            <FolderIcon className="h-8 w-8 text-blue-600" />
-          </div>
-        </div>
-
-        <div className="card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold text-green-600">
-                {exportRecords.filter(r => r.status === 'success').length}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">成功導出</div>
-            </div>
-            <CheckCircleIcon className="h-8 w-8 text-green-600" />
-          </div>
-        </div>
-
-        <div className="card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold text-yellow-600">
-                {exportRecords.filter(r => r.status === 'processing').length}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">處理中</div>
-            </div>
-            <ClockIcon className="h-8 w-8 text-yellow-600" />
-          </div>
-        </div>
-
-        <div className="card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold text-red-600">
-                {exportRecords.filter(r => r.status === 'failed').length}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">失敗</div>
-            </div>
-            <XCircleIcon className="h-8 w-8 text-red-600" />
-          </div>
-        </div>
-      </div>
-
-      {/* 導出記錄列表 */}
-      <div className="card">
+  return (
+    <PageLayout
+      title="Figma 導出記錄"
+      description="管理和追蹤 Figma 格式導出記錄"
+      icon={ArrowUpTrayIcon}
+      onRefresh={loadExportRecords}
+      refreshLoading={loading}
+      searchAndFilters={searchAndFiltersProps}
+      stats={statsProps}
+      pagination={
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filteredRecords.length}
+          itemsPerPage={itemsPerPage}
+        />
+      }
+    >
         {loading ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -535,39 +508,9 @@ const FigmaExports: React.FC = () => {
               ))}
             </div>
 
-            {/* 分頁 */}
-            {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    顯示 {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredRecords.length)} / {filteredRecords.length} 筆記錄
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                      disabled={currentPage <= 1}
-                      className="btn-secondary px-3 py-1 text-sm disabled:opacity-50"
-                    >
-                      上一頁
-                    </button>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {currentPage} / {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage >= totalPages}
-                      className="btn-secondary px-3 py-1 text-sm disabled:opacity-50"
-                    >
-                      下一頁
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </>
         )}
-      </div>
-    </div>
+    </PageLayout>
   )
 }
 

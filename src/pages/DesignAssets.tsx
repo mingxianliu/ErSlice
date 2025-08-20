@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { FolderIcon, PlusIcon, ArrowPathIcon, XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import { useDesignModulesStore, selectFilteredSorted, selectPaged } from '../stores/designModules'
+import PageLayout from '../components/PageLayout'
+import SearchAndFilters from '../components/SearchAndFilters'
 import { createDesignModule, archiveDesignModule, deleteDesignModule, unarchiveDesignModule, generateAllSlicePackages, generateSelectedSlicePackages, OverwriteStrategy, generateUnifiedSlicePackage, generateProjectMermaid, generateProjectMermaidHtml, generateModuleMermaidHtml, generateModuleCrudMermaidHtml, generateUserWorkflowMermaidHtml, exportSitemap, importSitemap } from '../utils/tauriCommands'
 import SitemapAnalyticsModal from '../components/SitemapAnalyticsModal'
 import FigmaExportOptions from '../components/FigmaExportOptions'
