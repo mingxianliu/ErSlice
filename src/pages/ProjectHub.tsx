@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useToast } from '@/components/ui/Toast'
 import { useProjectStore } from '@/stores/project'
 import { useDesignModulesStore } from '@/stores/designModules'
+import FigmaImporter from '@/components/FigmaImporter'
 import { 
   RocketLaunchIcon, 
   FolderIcon, 
@@ -10,7 +11,8 @@ import {
   Cog6ToothIcon,
   CheckCircleIcon,
   ArrowRightIcon,
-  BuildingLibraryIcon
+  BuildingLibraryIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
 
@@ -46,6 +48,7 @@ const ProjectHub: React.FC = () => {
   const designModulesStore = useDesignModulesStore()
   
   const [currentStep, setCurrentStep] = useState(1)
+  const [showFigmaImporter, setShowFigmaImporter] = useState(false)
   const [projectConfig, setProjectConfig] = useState<ProjectConfiguration>({
     name: '',
     description: '',
@@ -105,6 +108,26 @@ const ProjectHub: React.FC = () => {
           : [...currentSelected, resourceId]
       }
     })
+  }
+
+  // 處理 Figma 匯入結果
+  const handleFigmaImport = (result: any) => {
+    // 更新專案配置
+    setProjectConfig(prev => ({
+      ...prev,
+      name: result.projectName,
+      description: `從 Figma 匯入的專案，包含 ${result.modules.length} 個模組`,
+      selectedAssets: result.modules // 將 Figma 模組對應到設計資產
+    }))
+    
+    // 關閉匯入器，跳到下一步
+    setShowFigmaImporter(false)
+    setCurrentStep(2)
+    
+    showSuccess(
+      'Figma 資產匯入成功！', 
+      `已匯入 ${result.assets.length} 個設計稿，涵蓋 ${result.modules.length} 個模組`
+    )
   }
 
   // 生成專案切版包
@@ -572,11 +595,32 @@ const ProjectHub: React.FC = () => {
       </div>
 
       {/* 快速開始區域 */}
-      {currentStep === 1 && (
+      {currentStep === 1 && !showFigmaImporter && (
         <div className="card p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             快速開始
           </h3>
+          
+          {/* Figma 快速匯入 */}
+          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-purple-900 dark:text-purple-200 mb-2">
+                  🎨 從 Figma 快速開始
+                </h4>
+                <p className="text-sm text-purple-700 dark:text-purple-300">
+                  直接匯入 Figma 設計稿，自動解析為 ErSlice 專案資產
+                </p>
+              </div>
+              <button
+                onClick={() => setShowFigmaImporter(true)}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center"
+              >
+                <PhotoIcon className="h-5 w-5 mr-2" />
+                匯入 Figma
+              </button>
+            </div>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link
@@ -611,6 +655,20 @@ const ProjectHub: React.FC = () => {
                 創建AI可依循的開發規格文檔
               </p>
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Figma 匯入器 Modal */}
+      {showFigmaImporter && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <FigmaImporter
+                onImportComplete={handleFigmaImport}
+                onCancel={() => setShowFigmaImporter(false)}
+              />
+            </div>
           </div>
         </div>
       )}
