@@ -11,6 +11,8 @@ export interface ProjectConfig {
   includeBoneDefault: boolean
   includeSpecsDefault: boolean
   overwriteStrategyDefault?: 'overwrite' | 'skip' | 'rename'
+  mermaidTheme?: string
+  mermaidLayoutDirection?: string
 }
 
 interface ProjectState {
@@ -43,6 +45,8 @@ export const useProjectStore = create<ProjectState>((set) => ({
           includeBoneDefault: cfg.include_bone_default,
           includeSpecsDefault: cfg.include_specs_default,
           overwriteStrategyDefault: cfg.overwrite_strategy_default || 'overwrite',
+          mermaidTheme: cfg.mermaid_theme || undefined,
+          mermaidLayoutDirection: cfg.mermaid_layout_direction || undefined,
         } })
       } else {
         // fallback to localStorage

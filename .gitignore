@@ -1,1 +1,20 @@
 node_modules
+# build outputs
+dist/
+coverage/
+.vite/
+
+# app outputs
+output/
+ai-docs/
+
+# local workspace data
+projects/
+design-assets/
+design-assets-archived/
+
+# rust targets
+src-tauri/target/
+
+# system
+.DS_Store

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { FolderIcon, PlusIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useDesignModulesStore, selectFilteredSorted, selectPaged } from '../stores/designModules'
-import { createDesignModule, archiveDesignModule, deleteDesignModule, unarchiveDesignModule, generateAllSlicePackages, generateSelectedSlicePackages, OverwriteStrategy, generateUnifiedSlicePackage, generateProjectMermaid } from '../utils/tauriCommands'
+import { createDesignModule, archiveDesignModule, deleteDesignModule, unarchiveDesignModule, generateAllSlicePackages, generateSelectedSlicePackages, OverwriteStrategy, generateUnifiedSlicePackage, generateProjectMermaid, generateProjectMermaidHtml, generateModuleMermaidHtml, generateModuleCrudMermaidHtml, generateUserWorkflowMermaidHtml, exportSitemap, importSitemap } from '../utils/tauriCommands'
+import SitemapAnalyticsModal from '../components/SitemapAnalyticsModal'
 import { loadSettings } from '@/utils/settings'
 import { useProjectStore } from '@/stores/project'
 import { useToast } from '../components/ui/Toast'
@@ -22,11 +23,23 @@ const DesignAssets: React.FC = () => {
   const [bulkScope, setBulkScope] = useState<'all' | 'selected'>('all')
   const [bulkRunning, setBulkRunning] = useState(false)
   const [openUnified, setOpenUnified] = useState(false)
+  const [openAnalytics, setOpenAnalytics] = useState(false)
   const projectStore = useProjectStore()
   const [overwrite, setOverwrite] = useState<OverwriteStrategy>(projectStore.project?.overwriteStrategyDefault ?? 'overwrite')
   const [unifiedZip, setUnifiedZip] = useState(projectStore.project?.zipDefault ?? true)
   const [unifiedIncludeSkeleton, setUnifiedIncludeSkeleton] = useState(projectStore.project?.includeBoneDefault ?? false)
   const [unifiedIncludeSpecs, setUnifiedIncludeSpecs] = useState(projectStore.project?.includeSpecsDefault ?? false)
+
+  // 自動更新專案站點圖的輔助函數
+  const refreshProjectSitemap = async () => {
+    if (!store.tauriAvailable) return
+    try {
+      await generateProjectMermaid()
+      console.log('專案站點圖已自動更新')
+    } catch (e) {
+      console.warn('自動更新專案站點圖失敗:', e)
+    }
+  }
   const [unifiedPaths, setUnifiedPaths] = useState<{ assets: string; doc1: string; doc2: string }>(() => {
     const s = loadSettings()
     return { assets: s.externalDesignAssetsRoot || '', doc1: s.aiDocFrontendInstructionsPath || '', doc2: s.aiDocUiFriendlyPath || '' }
@@ -50,6 +63,16 @@ const DesignAssets: React.FC = () => {
 
   useEffect(() => {
     store.init()
+    
+    // Check URL parameters for analytics modal
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('showAnalytics') === 'true') {
+      setOpenAnalytics(true)
+      // Clean up URL without refreshing page
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('showAnalytics')
+      window.history.replaceState({}, '', newUrl.toString())
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -100,6 +123,7 @@ const DesignAssets: React.FC = () => {
           await archiveDesignModule(item.name)
         }
         await store.refresh()
+        await refreshProjectSitemap()
         showSuccess('封存完成', `已封存 ${selectedIds.length} 個模組`)
       } else {
         store.updateLocalStatuses(selectedIds, 'archived')
@@ -124,6 +148,7 @@ const DesignAssets: React.FC = () => {
           await deleteDesignModule(item.name)
         }
         await store.refresh()
+        await refreshProjectSitemap()
         showSuccess('刪除完成', `已刪除 ${selectedIds.length} 個模組`)
       } else {
         store.removeLocal(selectedIds)
@@ -149,6 +174,7 @@ const DesignAssets: React.FC = () => {
         // 切回現行視圖並刷新
         store.setViewArchived(false)
         await store.refresh()
+        await refreshProjectSitemap()
         showSuccess('還原完成', `已還原 ${selectedIds.length} 個模組`)
       } else {
         // 本地狀態：標記 active
@@ -165,7 +191,7 @@ const DesignAssets: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-full bg-gray-50 dark:bg-gray-900">
       {/* 頁面標題和操作 */}
       <div className="flex items-center justify-between">
         <div>
@@ -177,9 +203,10 @@ const DesignAssets: React.FC = () => {
             onClick={async () => {
               if (!store.tauriAvailable) { showError('Tauri 不可用', '請在 Tauri 環境中執行'); return }
               try {
-                const path = await (await import('@/utils/tauriCommands')).generateProjectMermaidHtml()
+                const path = await generateProjectMermaidHtml()
                 const { open } = await import('@tauri-apps/plugin-shell')
                 await open(path)
+                showSuccess('專案站點圖已生成並開啟')
               } catch (e) {
                 const m = e instanceof Error ? e.message : String(e)
                 showError('站點圖預覽失敗', m)
@@ -191,6 +218,87 @@ const DesignAssets: React.FC = () => {
             站點圖 HTML 預覽
           </button>
           <button onClick={() => setOpenProject(true)} className="btn-secondary" title="專案設定">專案設定</button>
+          <button
+            onClick={async () => {
+              if (!store.tauriAvailable) { showError('Tauri 不可用', '請在 Tauri 環境中執行'); return }
+              try {
+                showSuccess('開始批次生成所有模組站點圖...')
+                const modules = store.modules
+                let successCount = 0
+                let failCount = 0
+                
+                for (const module of modules) {
+                  try {
+                    await generateModuleMermaidHtml(module.name)
+                    await generateModuleCrudMermaidHtml(module.name)
+                    await generateUserWorkflowMermaidHtml(module.name)
+                    successCount++
+                  } catch (e) {
+                    console.error(`模組 ${module.name} 站點圖生成失敗:`, e)
+                    failCount++
+                  }
+                }
+                
+                showSuccess(`批次生成完成：成功 ${successCount} 個，失敗 ${failCount} 個`)
+              } catch (e) {
+                const m = e instanceof Error ? e.message : String(e)
+                showError('批次生成站點圖失敗', m)
+              }
+            }}
+            className="btn-secondary"
+            title="為所有模組批次生成站點圖和 CRUD 圖"
+          >
+            批次生成站點圖
+          </button>
+          <button
+            onClick={async () => {
+              if (!store.tauriAvailable) { showError('Tauri 不可用', '請在 Tauri 環境中執行'); return }
+              try {
+                const filePath = await exportSitemap()
+                const { open } = await import('@tauri-apps/plugin-shell')
+                await open(filePath)
+                showSuccess('站點圖數據導出完成', `已導出至：${filePath}`)
+              } catch (e) {
+                const m = e instanceof Error ? e.message : String(e)
+                showError('導出站點圖失敗', m)
+              }
+            }}
+            className="btn-secondary"
+            title="將整個專案結構導出為 JSON 檔案"
+          >
+            導出站點圖
+          </button>
+          <button
+            onClick={async () => {
+              if (!store.tauriAvailable) { showError('Tauri 不可用', '請在 Tauri 環境中執行'); return }
+              try {
+                const { open } = await import('@tauri-apps/plugin-dialog')
+                const filePath = await open({
+                  title: '選擇站點圖 JSON 檔案',
+                  filters: [{ name: 'JSON', extensions: ['json'] }]
+                })
+                if (filePath) {
+                  const result = await importSitemap(filePath as string)
+                  await refreshProjectSitemap()
+                  showSuccess('站點圖數據導入完成', result)
+                }
+              } catch (e) {
+                const m = e instanceof Error ? e.message : String(e)
+                showError('導入站點圖失敗', m)
+              }
+            }}
+            className="btn-secondary"
+            title="從 JSON 檔案導入專案結構"
+          >
+            導入站點圖
+          </button>
+          <button
+            onClick={() => setOpenAnalytics(true)}
+            className="btn-secondary"
+            title="查看站點圖分析報告"
+          >
+            站點圖分析
+          </button>
           {!store.viewArchived && (
             <button
               onClick={() => setOpenBulkGen(true)}
@@ -392,7 +500,7 @@ const DesignAssets: React.FC = () => {
                       includeCss: unifiedIncludeSkeleton,
                       includeResponsive: unifiedIncludeSkeleton,
                       includePageSpecs: unifiedIncludeSpecs,
-                      overwriteStrategy: overwrite,
+                      overwriteStrategy: overwrite as OverwriteStrategy,
                       makeZip: unifiedZip,
                     })
                     showSuccess('導出完成', `模組骨架：${rs.modulesCount}，輸出：${rs.outputDir}${rs.zipPath ? `；ZIP：${rs.zipPath}` : ''}`)
@@ -497,6 +605,7 @@ const DesignAssets: React.FC = () => {
                           await unarchiveDesignModule(module.name)
                           store.setViewArchived(false)
                           await store.refresh()
+                          await refreshProjectSitemap()
                           showSuccess('還原完成', `已還原：${module.name}`)
                         } else {
                           store.updateLocalStatuses([module.id], 'active')
@@ -519,6 +628,7 @@ const DesignAssets: React.FC = () => {
                         if (store.tauriAvailable) {
                           await deleteDesignModule(module.name)
                           await store.refresh()
+                          await refreshProjectSitemap()
                           showSuccess('刪除完成', module.name)
                         } else {
                           store.removeLocal([module.id])
@@ -557,7 +667,13 @@ const DesignAssets: React.FC = () => {
         ))}
 
         {/* 新增模組卡片 */}
-        <div className="card p-6 border-dashed border-2 border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer">
+        <div
+          className="card p-6 border-dashed border-2 border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer"
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpenCreate(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setOpenCreate(true) }}
+        >
           <div className="text-center py-8">
             <PlusIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">新增設計模組</h3>
@@ -679,6 +795,7 @@ const DesignAssets: React.FC = () => {
                       const created = await createDesignModule(trimmed, description.trim())
                       // put newest on top
                       store.addLocalModule(created)
+                      await refreshProjectSitemap()
                       showSuccess('創建成功', `已建立模組：${created.name}`)
                     } else {
                       // local-only addition
@@ -814,6 +931,7 @@ const DesignAssets: React.FC = () => {
           </div>
         </div>
       )}
+      <SitemapAnalyticsModal isOpen={openAnalytics} onClose={() => setOpenAnalytics(false)} />
     </div>
   )
 }
@@ -822,7 +940,7 @@ export default DesignAssets
 
 // 專案設定對話框（簡版）
 import ReactDOM from 'react-dom'
-import { updateDefaultProject, getDefaultProject, generateProjectMermaidHtml } from '@/utils/tauriCommands'
+import { updateDefaultProject, getDefaultProject } from '@/utils/tauriCommands'
 
 const ProjectSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { project, tauri } = useProjectStore()
@@ -837,6 +955,8 @@ const ProjectSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   const [includeSpecs, setIncludeSpecs] = useState(project?.includeSpecsDefault ?? false)
   const [saving, setSaving] = useState(false)
   const [overwriteDefault, setOverwriteDefault] = useState<'overwrite'|'skip'|'rename'>(project?.overwriteStrategyDefault ?? 'overwrite')
+  const [mermaidTheme, setMermaidTheme] = useState(project?.mermaidTheme ?? 'default')
+  const [mermaidLayout, setMermaidLayout] = useState(project?.mermaidLayoutDirection ?? 'TD')
 
   const save = async () => {
     setSaving(true)
@@ -850,6 +970,8 @@ const ProjectSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         include_bone_default: includeBone,
         include_specs_default: includeSpecs,
         overwrite_strategy_default: overwriteDefault,
+        mermaid_theme: mermaidTheme,
+        mermaid_layout_direction: mermaidLayout,
       }
       if (tauri) {
         await updateDefaultProject(cfg)
@@ -918,6 +1040,26 @@ const ProjectSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
               <option value="rename">自動重新命名</option>
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mermaid 主題</label>
+            <select value={mermaidTheme} onChange={(e) => setMermaidTheme(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+              <option value="default">默認</option>
+              <option value="dark">深色</option>
+              <option value="forest">森林</option>
+              <option value="neutral">中性</option>
+              <option value="base">基礎</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">站點圖佈局</label>
+            <select value={mermaidLayout} onChange={(e) => setMermaidLayout(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+              <option value="TD">上到下 (TD)</option>
+              <option value="TB">上到下 (TB)</option>
+              <option value="BT">下到上 (BT)</option>
+              <option value="RL">右到左 (RL)</option>
+              <option value="LR">左到右 (LR)</option>
+            </select>
+          </div>
         </div>
         <div className="mt-6 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -926,7 +1068,8 @@ const ProjectSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
               onClick={async () => {
                 if (!tauri) return
                 try {
-                  const p = await generateProjectMermaidHtml()
+                  const { generateProjectMermaidHtml: genSitemap } = await import('@/utils/tauriCommands')
+                  const p = await genSitemap()
                   const { open } = await import('@tauri-apps/plugin-shell')
                   await open(p)
                 } catch (e) {

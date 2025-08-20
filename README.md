@@ -67,6 +67,46 @@ npm run tauri:build  # Tauri 建置
 npm run build:all    # 完整建置
 ```
 
+## 🚢 釋出流程（Release）
+
+- 本地檢查：
+  - `npm run release` 會依序執行：Lint → Format 檢查 → Type Check（生產配置）→ 前端 + Tauri 建置。
+  - 在本地確認一切通過後再進行標記（tag）。
+
+- 建立版本與推送標籤：
+  - 使用 npm 版號命令（會自動建立 git tag）：
+    ```bash
+    npm version patch   # 或 minor / major
+    git push --follow-tags
+    ```
+  - 推上以 `v*` 開頭的 tag（例如 `v1.0.1`）後，GitHub Actions 會觸發 `.github/workflows/release.yml`，進行跨平台（Linux / macOS / Windows）Tauri 打包並建立 GitHub Release。
+  - 釋出說明（Release Notes）會自動生成：
+    - 來源：`package.json` 與 `src-tauri/tauri.conf.json` 的名稱/版本資訊
+    - 變更摘要：預設列出與前一個 `v*` 標籤相比的 commit 訊息（無則顯示預設說明）
+    - 可選分類（Conventional Commits）：在 Repository → Settings → Variables 設定 `CONVENTIONAL_COMMITS=true` 後，會按 `feat`/`fix`/`refactor`/`docs`/`perf`/`test`/`build`/`ci`/`chore`/`revert` 分類彙整，其餘歸入 `other`
+
+- 簽章（可選）：
+  - 若需對安裝包簽章，請在 GitHub 專案的 Secrets 中設定：
+    - `TAURI_PRIVATE_KEY`
+    - `TAURI_KEY_PASSWORD`
+  - 未設定時會以未簽章方式產出測試用安裝包。
+
+### macOS 簽章與公證（可選）
+
+- 在 GitHub 專案 Secrets 設定：
+  - `APPLE_CERTIFICATE`（以 base64 編碼的 .p12 / .pfx 憑證）
+  - `APPLE_CERTIFICATE_PASSWORD`
+  - `APPLE_ID`、`APPLE_PASSWORD`、`APPLE_TEAM_ID`
+- Workflow 會在 macOS runner 自動匯入憑證並交由 Tauri Action 進行簽章/公證。若未提供 secrets，步驟會自動略過。
+
+## 🧪 CI 檢查（Checks）
+
+- PR 與推送至 `main` 會觸發 `.github/workflows/checks.yml`：
+  - Lint、Format 檢查、`type-check:build`
+  - Build（Vite）：驗證前端可成功建置
+  - Web 測試（Vitest）與 Tauri 測試（Rust）
+- 可透過 Repository → Settings → Variables 設定 `SKIP_TAURI_TESTS=true` 以在 CI 中跳過 Tauri 測試（例如 runner 環境不完整時）。
+
 ## 📦 切版說明包結構
 
 每個模組生成的切版說明包包含：

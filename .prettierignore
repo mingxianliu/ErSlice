@@ -1,0 +1,10 @@
+dist/
+coverage/
+.vite/
+node_modules/
+src-tauri/target/
+design-assets/
+design-assets-archived/
+output/
+projects/
+

@@ -1,0 +1,153 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  tauri-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            args: ""
+          - os: macos-latest
+            args: ""
+          - os: windows-latest
+            args: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend deps
+        run: npm ci
+
+      # macOS: Import signing certificate when secrets are available
+      - name: Import Apple codesign certs
+        if: ${{ matrix.os == 'macos-latest' && secrets.APPLE_CERTIFICATE && secrets.APPLE_CERTIFICATE_PASSWORD }}
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Generate release notes
+        id: relnotes
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAME=$(node -p "require('./package.json').name || ''" || true)
+          PKG_VERSION=$(node -p "require('./package.json').version || ''" || true)
+          TAURI_PRODUCT=$(node -e "console.log((JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json', 'utf8')).productName)||'')")
+          TAURI_VERSION=$(node -e "console.log((JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json', 'utf8')).version)||'')")
+
+          CURRENT_TAG=${GITHUB_REF_NAME:-}
+          if [ -z "$CURRENT_TAG" ]; then
+            CURRENT_TAG=$(git describe --tags --abbrev=0 || echo "")
+          fi
+          PREV_TAG=$(git tag --sort=-creatordate | grep '^v' | sed -n '2p' || true)
+
+          if [ -n "$PREV_TAG" ] && [ -n "$CURRENT_TAG" ]; then
+            LOG_RANGE="$PREV_TAG..$CURRENT_TAG"
+          elif [ -n "$CURRENT_TAG" ]; then
+            # First release tag
+            LOG_RANGE="$CURRENT_TAG"
+          else
+            LOG_RANGE="HEAD~20..HEAD"
+          fi
+
+          echo "Collecting commits for range: $LOG_RANGE"
+          if [ "${{ vars.CONVENTIONAL_COMMITS }}" = "true" ]; then
+            # Conventional Commits categorization
+            map_section() {
+              local title="$1"; shift
+              local pattern="$*"
+              local lines
+              lines=$(git log --no-merges --pretty=format:'- %s (%h)' $LOG_RANGE | grep -E "^($pattern)(\(|!|: )" || true)
+              if [ -n "$lines" ]; then
+                printf "\n%s\n%s\n" "$title" "$lines"
+              fi
+            }
+
+            CC_BODY="變更摘要（Conventional Commits）："
+            CC_BODY+=$(map_section "feat:" "feat")
+            CC_BODY+=$(map_section "fix:" "fix")
+            CC_BODY+=$(map_section "perf:" "perf")
+            CC_BODY+=$(map_section "refactor:" "refactor")
+            CC_BODY+=$(map_section "docs:" "docs")
+            CC_BODY+=$(map_section "test:" "test")
+            CC_BODY+=$(map_section "build:" "build")
+            CC_BODY+=$(map_section "ci:" "ci")
+            CC_BODY+=$(map_section "chore:" "chore")
+            CC_BODY+=$(map_section "revert:" "revert")
+
+            # Others (non conventional)
+            ALL=$(git log --no-merges --pretty=format:'- %s (%h)' $LOG_RANGE || true)
+            CONV=$(echo "$ALL" | grep -E "^((feat|fix|perf|refactor|docs|test|build|ci|chore|revert)(\(|!|: ))" || true)
+            OTHER=$(comm -23 <(echo "$ALL" | sort) <(echo "$CONV" | sort) || true)
+            if [ -n "$OTHER" ]; then
+              CC_BODY+=$(printf "\nother:\n%s\n" "$OTHER")
+            fi
+
+            CHANGES=${CC_BODY}
+          else
+            CHANGES=$(git log --no-merges --pretty=format:'- %s (%h)' $LOG_RANGE 2>/dev/null || true)
+          fi
+
+          if [ -z "$CHANGES" ]; then
+            CHANGES="- 初始釋出或無變更摘要"
+          fi
+
+          BODY=$(cat <<EOF
+自動釋出：跨平台 Tauri 安裝包
+
+- App：${TAURI_PRODUCT:-$NAME}
+- Version：${PKG_VERSION:-$TAURI_VERSION}
+- Tag：${CURRENT_TAG}
+
+變更摘要：
+${CHANGES}
+EOF
+)
+          echo "body<<__BODY__" >> "$GITHUB_OUTPUT"
+          echo "$BODY" >> "$GITHUB_OUTPUT"
+          echo "__BODY__" >> "$GITHUB_OUTPUT"
+
+      # Tauri action will run `beforeBuildCommand` (npm run build) from tauri.conf.json
+      - name: Build and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 可選：若要簽章可配置以下兩個 secrets
+          # TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          # TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          # macOS Notarization/簽章（可選）
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Windows 簽章（可選，若使用 pfx 證書）
+          # WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          # WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "ErSlice v__VERSION__"
+          releaseBody: ${{ steps.relnotes.outputs.body }}
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

@@ -21,9 +21,9 @@ export interface AssetList {
 }
 
 // 列出資產
-export async function listAssets(moduleName: string): Promise<AssetList> {
+export async function listAssets(assetPath: string): Promise<AssetList> {
   try {
-    const result = await invoke<AssetList>('list_assets', { moduleName })
+    const result = await invoke<AssetList>('list_assets', { assetPath })
     return result
   } catch (error) {
     const ersliceError = handleTauriError(error)
@@ -33,12 +33,12 @@ export async function listAssets(moduleName: string): Promise<AssetList> {
 
 // 刪除資產
 export async function deleteDesignAsset(
-  moduleName: string,
+  assetPath: string,
   assetType: 'screenshots' | 'html' | 'css',
   fileName: string
 ): Promise<string> {
   try {
-    return await invoke<string>('delete_design_asset', { moduleName, assetType, fileName })
+    return await invoke<string>('delete_design_asset', { assetPath, assetType, fileName })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -116,13 +116,13 @@ export async function getArchivedDesignModules(): Promise<DesignModule[]> {
 
 // 上傳設計資產
 export async function uploadDesignAsset(
-  moduleName: string,
+  assetPath: string,
   assetType: 'screenshots' | 'html' | 'css',
   filePath: string
 ): Promise<string> {
   try {
     const result = await invoke<string>('upload_design_asset', {
-      moduleName,
+      assetPath,
       assetType,
       filePath
     })

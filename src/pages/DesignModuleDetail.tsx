@@ -2,8 +2,9 @@ import React, { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeftIcon, DocumentArrowDownIcon, ArrowPathIcon, CloudArrowUpIcon, EyeIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useDesignModulesStore } from '../stores/designModules'
-import { generateSlicePackage, uploadDesignAsset, listAssets, deleteDesignAsset, getModuleTree, createModulePage, deleteModulePage, renameModulePage, createSubpage, deleteSubpage, renameSubpage, setPageOrder, setSubpageOrder, applyCrudSubpages, updatePageMeta, updateSubpageMeta, type PageNode } from '../utils/tauriCommands'
+import { generateSlicePackage, uploadDesignAsset, listAssets, deleteDesignAsset, getModuleTree, createModulePage, deleteModulePage, renameModulePage, createSubpage, deleteSubpage, renameSubpage, setPageOrder, setSubpageOrder, applyCrudSubpages, updatePageMeta, updateSubpageMeta, generateModuleMermaidHtml, generateModuleCrudMermaidHtml, generatePageMermaidHtml, generateUserWorkflowMermaidHtml, type PageNode } from '../utils/tauriCommands'
 import MetaEditorModal from '../components/MetaEditorModal'
+import PageAssetManager from '../components/PageAssetManager'
 import { useToast } from '../components/ui/Toast'
 import { convertFileSrc } from '@tauri-apps/api/core'
 
@@ -25,6 +26,7 @@ const DesignModuleDetail: React.FC = () => {
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [screenshotView, setScreenshotView] = useState<'grid' | 'list'>('grid')
+  const [selectedPageForAssets, setSelectedPageForAssets] = useState<string | null>(null)
   const [tree, setTree] = useState<PageNode[]>([])
   const [newPageSlug, setNewPageSlug] = useState('')
   const [pageLoading, setPageLoading] = useState(false)
@@ -33,12 +35,99 @@ const DesignModuleDetail: React.FC = () => {
   const [newSubSlug, setNewSubSlug] = useState<Record<string, string>>({})
   const [drag, setDrag] = useState<{ kind: 'page' | 'sub'; parent?: string; slug: string } | null>(null)
   const [metaEditor, setMetaEditor] = useState<null | { kind: 'page'|'sub'; parent?: string; slug: string; data: Partial<PageNode> }>(null)
+  const [pageFilter, setPageFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set())
+  const [bulkAction, setBulkAction] = useState<'delete' | 'status' | null>(null)
+  const [dragOver, setDragOver] = useState<string | null>(null)
 
   const reorder = <T,>(arr: T[], from: number, to: number): T[] => {
     const a = arr.slice()
     const [item] = a.splice(from, 1)
     a.splice(to, 0, item)
     return a
+  }
+
+  // Filter and search helpers
+  const filteredTree = tree.filter(page => {
+    const matchesSearch = pageFilter === '' || 
+      page.slug.toLowerCase().includes(pageFilter.toLowerCase()) ||
+      (page.title && page.title.toLowerCase().includes(pageFilter.toLowerCase()))
+    const matchesStatus = statusFilter === 'all' || page.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
+
+  const togglePageSelection = (slug: string) => {
+    setSelectedPages(prev => {
+      const next = new Set(prev)
+      if (next.has(slug)) {
+        next.delete(slug)
+      } else {
+        next.add(slug)
+      }
+      return next
+    })
+  }
+
+  const selectAllPages = () => {
+    setSelectedPages(new Set(filteredTree.map(p => p.slug)))
+  }
+
+  const clearPageSelection = () => {
+    setSelectedPages(new Set())
+  }
+
+  const bulkDeletePages = async () => {
+    if (selectedPages.size === 0 || !confirm(`確認刪除 ${selectedPages.size} 個頁面？`)) return
+    
+    let successCount = 0
+    const errors: string[] = []
+    
+    for (const slug of selectedPages) {
+      try {
+        await deleteModulePage(moduleName, slug)
+        successCount++
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e)
+        errors.push(`${slug}: ${m}`)
+      }
+    }
+    
+    setSelectedPages(new Set())
+    await refreshPages()
+    
+    if (errors.length > 0) {
+      showError(`批次刪除部分失敗`, `成功 ${successCount} 個，失敗 ${errors.length} 個`)
+    } else {
+      showSuccess(`批次刪除完成`, `成功刪除 ${successCount} 個頁面`)
+    }
+  }
+
+  const bulkUpdateStatus = async (newStatus: string) => {
+    if (selectedPages.size === 0) return
+    
+    let successCount = 0
+    const errors: string[] = []
+    
+    for (const slug of selectedPages) {
+      try {
+        await updatePageMeta(moduleName, slug, { status: newStatus })
+        successCount++
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e)
+        errors.push(`${slug}: ${m}`)
+      }
+    }
+    
+    setSelectedPages(new Set())
+    setBulkAction(null)
+    await refreshPages()
+    
+    if (errors.length > 0) {
+      showError(`批次更新部分失敗`, `成功 ${successCount} 個，失敗 ${errors.length} 個`)
+    } else {
+      showSuccess(`批次更新完成`, `成功更新 ${successCount} 個頁面狀態`)
+    }
   }
 
   // 可擴充：可用於顯示更多模組屬性
@@ -117,6 +206,15 @@ const DesignModuleDetail: React.FC = () => {
     try {
       const list = await getModuleTree(moduleName)
       setTree(list)
+      
+      // 自動更新模組站點圖
+      try {
+        await generateModuleMermaidHtml(moduleName)
+        await generateModuleCrudMermaidHtml(moduleName)
+      } catch (e) {
+        // 靜默失敗，不影響主要功能
+        console.warn('自動更新站點圖失敗:', e)
+      }
     } catch (e) {
       const m = e instanceof Error ? e.message : String(e)
       showError('讀取頁面失敗', m)
@@ -167,20 +265,38 @@ const DesignModuleDetail: React.FC = () => {
     }
   }
 
+  // Get unique statuses for filter dropdown
+  const uniqueStatuses = [...new Set(tree.map(p => p.status).filter(Boolean))]
+
   // 頁面樹渲染（避免深層巢狀三元造成 JSX 解析問題）
   const renderPageSection = () => {
     if (pageLoading) return <div className="text-sm text-gray-500 dark:text-gray-400">讀取中...</div>
     if (tree.length === 0) return <div className="text-sm text-gray-500 dark:text-gray-400">尚無頁面，先新增一個吧</div>
+    
+    const displayTree = filteredTree
+    if (displayTree.length === 0) return <div className="text-sm text-gray-500 dark:text-gray-400">沒有符合條件的頁面</div>
+    
     return (
           <div className="space-y-3">
-            {tree.map((p, idx) => (
+            {displayTree.map((p, idx) => (
               <div
                 key={p.slug}
-                className="border border-gray-200 dark:border-gray-700 rounded"
+                className={`border rounded transition-all ${
+                  dragOver === p.slug 
+                    ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                    : selectedPages.has(p.slug)
+                    ? 'border-blue-300 bg-blue-50/50 dark:bg-blue-900/10'
+                    : 'border-gray-200 dark:border-gray-700'
+                }`}
                 draggable
                 onDragStart={() => setDrag({ kind: 'page', slug: p.slug })}
-                onDragOver={(e) => e.preventDefault()}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setDragOver(p.slug)
+                }}
+                onDragLeave={() => setDragOver(null)}
                 onDrop={async () => {
+                  setDragOver(null)
                   if (!drag || drag.kind !== 'page') return
                   const from = tree.findIndex(x => x.slug === drag.slug)
                   const to = idx
@@ -199,8 +315,14 @@ const DesignModuleDetail: React.FC = () => {
               >
                 <div className="flex items-center justify-between px-3 py-2">
                   <div className="text-sm text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedPages.has(p.slug)}
+                      onChange={() => togglePageSelection(p.slug)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
                     <button
-                      className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700"
+                      className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
                       onClick={() => setExpanded((prev) => ({ ...prev, [p.slug]: !prev[p.slug] }))}
                     >{expanded[p.slug] ? '−' : '+'}</button>
                     <span className="font-medium">{p.slug}</span>
@@ -238,13 +360,14 @@ const DesignModuleDetail: React.FC = () => {
                     <>
                       <button className="btn-secondary text-sm" onClick={() => setRenaming({ slug: p.slug, to: p.slug })}>重新命名</button>
                       <button className="btn-secondary text-sm" onClick={() => setMetaEditor({ kind: 'page', slug: p.slug, data: p })}>編輯</button>
+                      <button className="btn-accent text-sm" onClick={() => setSelectedPageForAssets(p.slug)}>📁 資產管理</button>
                       <button className="btn-secondary text-sm" onClick={async () => {
                         if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
                         try {
-                          const { generatePageMermaidHtml } = await import('../utils/tauriCommands')
                           const path = await generatePageMermaidHtml(moduleName, p.slug)
                           const { open } = await import('@tauri-apps/plugin-shell')
                           await open(path)
+                          showSuccess('頁面站點圖已生成並開啟')
                         } catch (e) {
                           const m = e instanceof Error ? e.message : String(e)
                           showError('頁面站點圖生成失敗', m)
@@ -253,10 +376,10 @@ const DesignModuleDetail: React.FC = () => {
                       <button className="btn-secondary text-sm" onClick={async () => {
                         if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
                         try {
-                          const { generateModuleMermaidHtml } = await import('../utils/tauriCommands')
                           const path = await generateModuleMermaidHtml(moduleName)
                           const { open } = await import('@tauri-apps/plugin-shell')
                           await open(path)
+                          showSuccess('模組站點圖已生成並開啟')
                         } catch (e) {
                           const m = e instanceof Error ? e.message : String(e)
                           showError('模組站點圖生成失敗', m)
@@ -543,14 +666,112 @@ const DesignModuleDetail: React.FC = () => {
 
       {/* 頁面管理（Phase 2：一層子頁） */}
       <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">頁面</h2>
+        <div className="space-y-4 mb-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              頁面 <span className="text-sm text-gray-500 font-normal">({tree.length} 個)</span>
+            </h2>
+            <div className="flex items-center gap-2">
+              <button
+                className="btn-secondary text-sm"
+                onClick={async () => {
+                  if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
+                  try {
+                    const path = await generateModuleMermaidHtml(moduleName)
+                    const { open } = await import('@tauri-apps/plugin-shell')
+                    await open(path)
+                    showSuccess('模組站點圖已生成並開啟')
+                  } catch (e) {
+                    const m = e instanceof Error ? e.message : String(e)
+                    showError('生成模組站點圖失敗', m)
+                  }
+                }}>模組站點圖 HTML</button>
+              <button
+                className="btn-secondary text-sm"
+                onClick={async () => {
+                  if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
+                  try {
+                    const path = await generateModuleCrudMermaidHtml(moduleName)
+                    const { open } = await import('@tauri-apps/plugin-shell')
+                    await open(path)
+                    showSuccess('模組 CRUD 圖已生成並開啟')
+                  } catch (e) {
+                    const m = e instanceof Error ? e.message : String(e)
+                    showError('生成 CRUD 圖失敗', m)
+                  }
+                }}>模組 CRUD 圖 HTML</button>
+              <button
+                className="btn-accent text-sm"
+                onClick={async () => {
+                  if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
+                  try {
+                    const path = await generateUserWorkflowMermaidHtml(moduleName)
+                    const { open } = await import('@tauri-apps/plugin-shell')
+                    await open(path)
+                    showSuccess('用戶工作流程圖已生成並開啟')
+                  } catch (e) {
+                    const m = e instanceof Error ? e.message : String(e)
+                    showError('生成工作流程圖失敗', m)
+                  }
+                }}>🔄 用戶工作流程圖</button>
+            </div>
+          </div>
+
+          {/* Search and Filter Bar */}
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                type="text"
+                placeholder="搜尋頁面（名稱或標題）"
+                value={pageFilter}
+                onChange={(e) => setPageFilter(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm"
+              />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm"
+              >
+                <option value="all">所有狀態</option>
+                {uniqueStatuses.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Bulk Actions */}
+            {selectedPages.size > 0 && (
+              <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
+                <span className="text-sm text-blue-700 dark:text-blue-300">已選 {selectedPages.size} 個</span>
+                <button
+                  className="btn-secondary text-sm"
+                  onClick={bulkDeletePages}
+                >
+                  批次刪除
+                </button>
+                <button
+                  className="btn-secondary text-sm"
+                  onClick={() => setBulkAction('status')}
+                >
+                  批次更新狀態
+                </button>
+                <button
+                  className="btn-secondary text-sm"
+                  onClick={clearPageSelection}
+                >
+                  取消選擇
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Add Page Bar */}
           <div className="flex items-center gap-2">
             <input
               value={newPageSlug}
               onChange={(e) => setNewPageSlug(e.target.value)}
               placeholder="new-page-slug"
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm"
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm"
             />
             <button
               className="btn-primary text-sm"
@@ -573,36 +794,16 @@ const DesignModuleDetail: React.FC = () => {
             >
               新增頁面
             </button>
-            <button
-              className="btn-secondary text-sm"
-              onClick={async () => {
-                if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
-                try {
-                  const { generateModuleMermaidHtml } = await import('../utils/tauriCommands')
-                  const path = await generateModuleMermaidHtml(moduleName)
-                  const { open } = await import('@tauri-apps/plugin-shell')
-                  await open(path)
-                } catch (e) {
-                  const m = e instanceof Error ? e.message : String(e)
-                  showError('生成模組站點圖失敗', m)
-                }
-              }}>模組站點圖 HTML</button>
-            <button
-              className="btn-secondary text-sm"
-              onClick={async () => {
-                if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
-                try {
-                  const { generateModuleCrudMermaidHtml } = await import('../utils/tauriCommands')
-                  const path = await generateModuleCrudMermaidHtml(moduleName)
-                  const { open } = await import('@tauri-apps/plugin-shell')
-                  await open(path)
-                } catch (e) {
-                  const m = e instanceof Error ? e.message : String(e)
-                  showError('生成 CRUD 圖失敗', m)
-                }
-              }}>模組 CRUD 圖 HTML</button>
+            {filteredTree.length > 0 && (
+              <button
+                className="btn-secondary text-sm"
+                onClick={selectedPages.size === filteredTree.length ? clearPageSelection : selectAllPages}
+              >
+                {selectedPages.size === filteredTree.length ? '取消全選' : '全選'}
+              </button>
+            )}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">可用逗號分隔批次新增，例如：list,detail,create</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">可用逗號分隔批次新增，例如：list,detail,create</div>
         </div>
         {renderPageSection()}
       </div>
@@ -831,6 +1032,70 @@ const DesignModuleDetail: React.FC = () => {
             }
           }}
         />
+      )}
+
+      {/* Bulk Status Update Modal */}
+      {bulkAction === 'status' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setBulkAction(null)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              批次更新狀態 ({selectedPages.size} 個頁面)
+            </h3>
+            <div className="space-y-3">
+              {['active', 'draft', 'archived', 'review', 'completed'].map(status => (
+                <button
+                  key={status}
+                  className="w-full text-left px-4 py-2 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  onClick={() => bulkUpdateStatus(status)}
+                >
+                  {status === 'active' ? '活躍' : 
+                   status === 'draft' ? '草稿' : 
+                   status === 'archived' ? '已封存' : 
+                   status === 'review' ? '審查中' :
+                   status === 'completed' ? '已完成' : status}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button className="btn-secondary" onClick={() => setBulkAction(null)}>取消</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 頁面資產管理模態框 */}
+      {selectedPageForAssets && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedPageForAssets(null)}></div>
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                頁面資產管理
+              </h2>
+              <button 
+                onClick={() => setSelectedPageForAssets(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6">
+              {(() => {
+                const selectedPage = tree.find(p => p.slug === selectedPageForAssets)
+                if (!selectedPage) return <div>找不到頁面</div>
+                
+                return (
+                  <PageAssetManager
+                    moduleName={moduleName}
+                    pageSlug={selectedPage.slug}
+                    pagePath={selectedPage.path}
+                  />
+                )
+              })()}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

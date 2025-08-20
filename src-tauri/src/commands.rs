@@ -389,20 +389,21 @@ fn get_last_modified(path: &PathBuf) -> String {
 // 上傳設計資產
 #[tauri::command]
 pub async fn upload_design_asset(
-    module_name: String,
+    asset_path: String,
     asset_type: String,
     file_path: String,
 ) -> Result<String, String> {
-    let module_dir = PathBuf::from("design-assets").join(&module_name);
+    let base_dir = PathBuf::from("design-assets").join(&asset_path);
     
-    if !module_dir.exists() {
-        return Err("設計模組不存在".to_string());
+    // 確保目標目錄存在
+    if let Err(e) = std::fs::create_dir_all(&base_dir) {
+        return Err(format!("無法建立資產目錄: {}", e));
     }
     
     let target_dir = match asset_type.as_str() {
-        "screenshots" => module_dir.join("screenshots"),
-        "html" => module_dir.join("html"),
-        "css" => module_dir.join("css"),
+        "screenshots" => base_dir.join("screenshots"),
+        "html" => base_dir.join("html"),
+        "css" => base_dir.join("css"),
         _ => return Err("不支援的資產類型".to_string()),
     };
     
@@ -411,6 +412,11 @@ pub async fn upload_design_asset(
         .ok_or("無效的檔案路徑")?
         .to_str()
         .ok_or("檔案名稱包含無效字符")?;
+    
+    // 確保目標資產類型目錄存在
+    if let Err(e) = std::fs::create_dir_all(&target_dir) {
+        return Err(format!("無法建立資產類型目錄: {}", e));
+    }
     
     let target_path = target_dir.join(file_name);
     
@@ -425,7 +431,7 @@ pub async fn upload_design_asset(
         use std::process::Command;
         let _ = Command::new("osascript")
             .arg("-e")
-            .arg(format!("display notification \"資產 '{}' 上傳成功到模組 '{}'\" with title \"ErSlice\"", file_name, module_name))
+            .arg(format!("display notification \"資產 '{}' 成功上傳至 '{}'\" with title \"ErSlice\"", file_name, asset_path))
             .output();
     }
     
@@ -3268,10 +3274,15 @@ pub async fn generate_unified_slice_package(
 
 // 列出模組資產
 #[tauri::command]
-pub async fn list_assets(module_name: String) -> Result<AssetList, String> {
-    let module_dir = PathBuf::from("design-assets").join(&module_name);
-    if !module_dir.exists() {
-        return Err("設計模組不存在".to_string());
+pub async fn list_assets(asset_path: String) -> Result<AssetList, String> {
+    let base_dir = PathBuf::from("design-assets").join(&asset_path);
+    // 如果目錄不存在，返回空的資產列表（而不是錯誤）
+    if !base_dir.exists() {
+        return Ok(AssetList {
+            screenshots: Vec::new(),
+            html: Vec::new(),
+            css: Vec::new(),
+        });
     }
 
     let mut result = AssetList {
@@ -3281,13 +3292,13 @@ pub async fn list_assets(module_name: String) -> Result<AssetList, String> {
     };
 
     let read_dir = |sub: &str, vec: &mut Vec<String>| {
-        let p = module_dir.join(sub);
+        let p = base_dir.join(sub);
         if let Ok(entries) = std::fs::read_dir(&p) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() {
-                    if let Ok(abs) = std::fs::canonicalize(&path) {
-                        if let Some(s) = abs.to_str() {
+                    if let Some(file_name) = path.file_name() {
+                        if let Some(s) = file_name.to_str() {
                             vec.push(s.to_string());
                         }
                     }
@@ -3306,19 +3317,19 @@ pub async fn list_assets(module_name: String) -> Result<AssetList, String> {
 // 刪除指定資產
 #[tauri::command]
 pub async fn delete_design_asset(
-    module_name: String,
+    asset_path: String,
     asset_type: String,
     file_name: String,
 ) -> Result<String, String> {
-    let module_dir = PathBuf::from("design-assets").join(&module_name);
-    if !module_dir.exists() {
-        return Err("設計模組不存在".to_string());
+    let base_dir = PathBuf::from("design-assets").join(&asset_path);
+    if !base_dir.exists() {
+        return Err("資產路徑不存在".to_string());
     }
 
     let target_dir = match asset_type.as_str() {
-        "screenshots" => module_dir.join("screenshots"),
-        "html" => module_dir.join("html"),
-        "css" => module_dir.join("css"),
+        "screenshots" => base_dir.join("screenshots"),
+        "html" => base_dir.join("html"),
+        "css" => base_dir.join("css"),
         _ => return Err("不支援的資產類型".to_string()),
     };
 
