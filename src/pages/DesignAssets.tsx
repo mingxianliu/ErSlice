@@ -1196,20 +1196,22 @@ const DesignAssets: React.FC = () => {
 
               {/* 操作按鈕 */}
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-400 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-500 dark:to-gray-600 text-gray-700 dark:text-gray-100 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-400 dark:hover:to-gray-500 hover:border-gray-400 dark:hover:border-gray-300 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                <Button
+                  variant="secondary"
+                  size="md"
                   onClick={() => setOpenQuickImport(false)}
                 >
                   取消
-                </button>
-                <button
-                  className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-green-300 dark:border-green-400 bg-gradient-to-r from-green-300 to-green-400 dark:from-green-400 dark:to-green-500 text-white hover:from-green-400 hover:to-green-500 dark:hover:from-green-500 dark:hover:to-green-600 hover:border-green-400 dark:hover:border-green-500 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
+                </Button>
+                <Button
+                  variant="success"
+                  size="md"
                   onClick={handleQuickImport}
                   disabled={!selectedModule || (!importTypes.screenshots && !importTypes.html && !importTypes.css)}
                 >
-                  <ArrowUpTrayIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+                  <ArrowUpTrayIcon className="h-5 w-5" />
                   開始匯入
-                </button>
+                </Button>
               </div>
             </div>
           </div>

@@ -14,25 +14,25 @@ const buttonVariants = cva(
         md: "px-4 py-2 text-sm rounded-lg",           // 中按鈕
         lg: "px-6 py-3 text-base rounded-xl",         // 大按鈕
       },
-      // 變體樣式 - 統一色系，避免五顏六色
+      // 變體樣式 - 純色設計，專業簡潔
       variant: {
-        // 主要按鈕 - 藍色系
-        primary: "bg-gradient-to-r from-blue-200 to-blue-300 dark:from-blue-400 dark:to-blue-500 text-white border border-blue-200 dark:border-blue-400 hover:from-blue-300 hover:to-blue-400 dark:hover:from-blue-500 dark:hover:to-blue-600 hover:border-blue-300 dark:hover:border-blue-500 focus:ring-blue-200 dark:focus:ring-blue-200 shadow-sm hover:shadow-md",
+        // 主要按鈕 - 純藍色
+        primary: "bg-blue-600 dark:bg-blue-500 text-white border border-blue-600 dark:border-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 hover:border-blue-700 dark:hover:border-blue-600 focus:ring-blue-200 dark:focus:ring-blue-200 shadow-sm hover:shadow-md",
         
-        // 次要按鈕 - 灰色系
-        secondary: "bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-600 dark:to-gray-700 text-gray-700 dark:text-gray-100 border border-gray-300 dark:border-gray-500 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-400 dark:hover:border-gray-400 focus:ring-gray-200 dark:focus:ring-gray-300 shadow-sm hover:shadow-md",
+        // 次要按鈕 - 純灰色
+        secondary: "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-100 border border-gray-300 dark:border-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 hover:border-gray-400 dark:hover:border-gray-400 focus:ring-gray-200 dark:focus:ring-gray-300 shadow-sm hover:shadow-md",
         
-        // 成功按鈕 - 改為藍綠色系（更接近藍色）
-        success: "bg-gradient-to-r from-blue-300 to-blue-400 dark:from-blue-400 dark:to-blue-500 text-white border border-blue-300 dark:border-blue-400 hover:from-blue-400 hover:to-blue-500 dark:hover:from-blue-500 dark:hover:to-blue-600 hover:border-blue-400 dark:hover:border-blue-500 focus:ring-blue-200 dark:focus:ring-blue-300 shadow-sm hover:shadow-md",
+        // 成功按鈕 - 純綠色
+        success: "bg-green-600 dark:bg-green-500 text-white border border-green-600 dark:border-green-500 hover:bg-green-700 dark:hover:bg-green-600 hover:border-green-700 dark:hover:border-green-600 focus:ring-green-200 dark:focus:ring-green-300 shadow-sm hover:shadow-md",
         
-        // 警告按鈕 - 改為藍灰色系
-        warning: "bg-gradient-to-r from-blue-200 to-gray-300 dark:from-blue-400 dark:to-gray-500 text-white border border-blue-200 dark:border-blue-400 hover:from-blue-300 hover:to-gray-400 dark:hover:from-blue-500 dark:hover:to-gray-600 hover:border-blue-300 dark:hover:border-blue-500 focus:ring-blue-200 dark:focus:ring-blue-300 shadow-sm hover:shadow-md",
+        // 警告按鈕 - 純琥珀色
+        warning: "bg-amber-600 dark:bg-amber-500 text-white border border-amber-600 dark:border-amber-500 hover:bg-amber-700 dark:hover:bg-amber-600 hover:border-amber-700 dark:hover:border-amber-600 focus:ring-amber-200 dark:focus:ring-amber-300 shadow-sm hover:shadow-md",
         
-        // 危險按鈕 - 改為深藍色系（避免紅色）
-        danger: "bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white border border-blue-400 dark:border-blue-500 hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 focus:ring-blue-200 dark:focus:ring-blue-300 shadow-sm hover:shadow-md",
+        // 危險按鈕 - 純紅色
+        danger: "bg-red-600 dark:bg-red-500 text-white border border-red-600 dark:border-red-500 hover:bg-red-700 dark:hover:bg-red-600 hover:border-red-700 dark:hover:border-red-600 focus:ring-red-200 dark:focus:ring-red-300 shadow-sm hover:shadow-md",
         
-        // 資訊按鈕 - 淺藍灰色系
-        info: "bg-gradient-to-r from-blue-50 to-gray-100 dark:from-blue-800/40 dark:to-gray-800/40 text-blue-700 dark:text-blue-200 border border-blue-200 dark:border-blue-500 hover:from-blue-100 hover:to-gray-200 dark:hover:from-blue-700/40 dark:hover:to-gray-700/40 hover:border-blue-300 dark:hover:border-blue-400 focus:ring-blue-200 dark:focus:ring-blue-300 shadow-sm hover:shadow-md",
+        // 資訊按鈕 - 純藍灰色
+        info: "bg-slate-600 dark:bg-slate-500 text-white border border-slate-600 dark:border-slate-500 hover:bg-slate-700 dark:hover:bg-slate-600 hover:border-slate-700 dark:hover:border-slate-600 focus:ring-slate-200 dark:focus:ring-slate-300 shadow-sm hover:shadow-md",
         
         // 輕量按鈕 - 無背景，只有邊框
         ghost: "bg-transparent text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-500 focus:ring-gray-200 dark:focus:ring-gray-300",

@@ -767,23 +767,25 @@ const TemplateGenerator: React.FC = () => {
                 </div>
               </div>
               <div className="flex gap-3 mt-6">
-                <button
+                <Button
+                  variant="secondary"
+                  size="md"
                   onClick={() => {
                     setShowEditModal(false)
                     setSelectedTemplate(null)
                     setFormData({ name: '', description: '', category: TemplateCategory.LAYOUT, complexity: TemplateComplexity.SIMPLE, tags: [], features: [] })
                   }}
-                  className="flex-1 btn-secondary"
                 >
                   取消
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
                   onClick={handleUpdateTemplate}
                   disabled={!formData.name.trim()}
-                  className="flex-1 btn-primary"
                 >
                   更新
-                </button>
+                </Button>
               </div>
             </div>
           </div>

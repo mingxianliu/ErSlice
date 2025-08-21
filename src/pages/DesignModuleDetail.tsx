@@ -348,25 +348,33 @@ const DesignModuleDetail: React.FC = () => {
                       aria-label="頁面重新命名"
                       className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white"
                     />
-                    <button className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-green-500 dark:border-green-600 bg-gradient-to-r from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 text-white hover:from-green-600 hover:to-green-700 dark:hover:from-green-700 dark:hover:to-green-800 hover:border-green-600 dark:hover:border-green-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={async () => {
-                      if (!renaming) return
-                      try {
-                        await renameModulePage(moduleName, renaming.slug, renaming.to)
-                        setRenaming(null)
-                        await refreshPages()
-                        showSuccess('已重新命名')
-                      } catch (e) {
-                        const m = e instanceof Error ? e.message : String(e)
-                        showError('重新命名失敗', m)
-                      }
-                    }}>
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={async () => {
+                        if (!renaming) return
+                        try {
+                          await renameModulePage(moduleName, renaming.slug, renaming.to)
+                          setRenaming(null)
+                          await refreshPages()
+                          showSuccess('已重新命名')
+                        } catch (e) {
+                          const m = e instanceof Error ? e.message : String(e)
+                          showError('重新命名失敗', m)
+                        }
+                      }}
+                    >
                       <CheckIcon className="h-3 w-3" />
                       確定
-                    </button>
-                    <button className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={() => setRenaming(null)}>
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setRenaming(null)}
+                    >
                       <XMarkIcon className="h-3 w-3" />
                       取消
-                    </button>
+                    </Button>
                     </>
                   ) : (
                     <>
@@ -481,73 +489,85 @@ const DesignModuleDetail: React.FC = () => {
                     placeholder={`${p.slug}-sub`}
                     className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-500 focus:border-blue-300 dark:focus:border-blue-500 transition-all duration-200"
                   />
-                  <button className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-300 dark:border-blue-400 bg-gradient-to-r from-blue-300 to-blue-400 dark:from-blue-400 dark:to-blue-500 text-white hover:from-blue-400 hover:to-blue-500 dark:hover:from-blue-500 dark:hover:to-blue-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg" onClick={async () => {
-                    const slug = (newSubSlug[p.slug] || '').trim()
-                    if (!slug) {
-                      showError('請輸入子頁名稱')
-                      return
-                    }
-                    const list = slug.split(',').map(s => s.trim()).filter(Boolean)
-                    
-                    if (!store.tauriAvailable) {
-                      // Fallback for non-Tauri environment
-                      const newSubpages = list.map(s => ({
-                        slug: s,
-                        path: `${p.path}/${s}`,
-                        title: s,
-                        status: 'draft',
-                        children: []
-                      }))
-                      setTree(tree.map(node => 
-                        node.slug === p.slug 
-                          ? { ...node, children: [...node.children, ...newSubpages] }
-                          : node
-                      ))
-                      setNewSubSlug((prev) => ({ ...prev, [p.slug]: '' }))
-                      showSuccess(`已新增 ${list.length} 個子頁（本地模式）`)
-                      return
-                    }
-                    
-                    try {
-                      for (const s of list) {
-                        await createSubpage(moduleName, p.slug, s)
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={async () => {
+                      const slug = (newSubSlug[p.slug] || '').trim()
+                      if (!slug) {
+                        showError('請輸入子頁名稱')
+                        return
                       }
-                      setNewSubSlug((prev) => ({ ...prev, [p.slug]: '' }))
-                      await refreshPages()
-                      showSuccess(`已新增 ${list.length} 個子頁`)
-                    } catch (e) {
-                      const m = e instanceof Error ? e.message : String(e)
-                      showError('新增子頁失敗', m)
-                    }
-                  }}>新增子頁</button>
-                  <button className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-400 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-500 dark:to-gray-600 text-gray-700 dark:text-gray-100 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-400 dark:hover:to-gray-500 hover:border-gray-400 dark:hover:border-gray-300 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={async () => {
-                    if (!store.tauriAvailable) {
-                      // Fallback for non-Tauri environment
-                      const crudPages = ['list', 'create', 'edit', 'delete'].map(action => ({
-                        slug: action,
-                        path: `${p.path}/${action}`,
-                        title: action,
-                        status: 'draft',
-                        children: []
-                      }))
-                      setTree(tree.map(node => 
-                        node.slug === p.slug 
-                          ? { ...node, children: [...node.children, ...crudPages] }
-                          : node
-                      ))
-                      showSuccess(`已套用 CRUD（新增 4 個子頁）（本地模式）`)
-                      return
-                    }
-                    
-                    try {
-                      const created = await applyCrudSubpages(moduleName, p.slug)
-                      await refreshPages()
-                      showSuccess(`已套用 CRUD（新增 ${created.length} 個子頁）`)
-                    } catch (e) {
-                      const m = e instanceof Error ? e.message : String(e)
-                      showError('套用 CRUD 失敗', m)
-                    }
-                  }}>套用 CRUD 子頁</button>
+                      const list = slug.split(',').map(s => s.trim()).filter(Boolean)
+                      
+                      if (!store.tauriAvailable) {
+                        // Fallback for non-Tauri environment
+                        const newSubpages = list.map(s => ({
+                          slug: s,
+                          path: `${p.path}/${s}`,
+                          title: s,
+                          status: 'draft',
+                          children: []
+                        }))
+                        setTree(tree.map(node => 
+                          node.slug === p.slug 
+                            ? { ...node, children: [...node.children, ...newSubpages] }
+                            : node
+                        ))
+                        setNewSubSlug((prev) => ({ ...prev, [p.slug]: '' }))
+                        showSuccess(`已新增 ${list.length} 個子頁（本地模式）`)
+                        return
+                      }
+                      
+                      try {
+                        for (const s of list) {
+                          await createSubpage(moduleName, p.slug, s)
+                        }
+                        setNewSubSlug((prev) => ({ ...prev, [p.slug]: '' }))
+                        await refreshPages()
+                        showSuccess(`已新增 ${list.length} 個子頁`)
+                      } catch (e) {
+                        const m = e instanceof Error ? e.message : String(e)
+                        showError('新增子頁失敗', m)
+                      }
+                    }}
+                  >
+                    新增子頁
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={async () => {
+                      if (!store.tauriAvailable) {
+                        // Fallback for non-Tauri environment
+                        const crudPages = ['list', 'create', 'edit', 'delete'].map(action => ({
+                          slug: action,
+                          path: `${p.path}/${action}`,
+                          title: action,
+                          status: 'draft',
+                          children: []
+                        }))
+                        setTree(tree.map(node => 
+                          node.slug === p.slug 
+                            ? { ...node, children: [...node.children, ...crudPages] }
+                            : node
+                        ))
+                        showSuccess(`已套用 CRUD（新增 4 個子頁）（本地模式）`)
+                        return
+                      }
+                      
+                      try {
+                        const created = await applyCrudSubpages(moduleName, p.slug)
+                        await refreshPages()
+                        showSuccess(`已套用 CRUD（新增 ${created.length} 個子頁）`)
+                      } catch (e) {
+                        const m = e instanceof Error ? e.message : String(e)
+                        showError('套用 CRUD 失敗', m)
+                      }
+                    }}
+                  >
+                    套用 CRUD 子頁
+                  </Button>
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">可用逗號分隔批次新增，例如：list,edit,review</div>
                     <div className="space-y-1">
