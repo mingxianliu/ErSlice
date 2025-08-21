@@ -3663,3 +3663,198 @@ fn generate_feedback_patterns(buf: &mut String, module: &str) -> Result<(), Stri
     
     Ok(())
 }
+
+// ==================== 數據庫管理命令 ====================
+
+/// 初始化數據庫
+#[tauri::command]
+pub async fn init_database() -> Result<String, String> {
+    use crate::database;
+    
+    match database::init_database() {
+        Ok(_) => Ok("數據庫初始化成功".to_string()),
+        Err(e) => Err(format!("數據庫初始化失敗: {}", e))
+    }
+}
+
+/// 獲取數據庫統計信息
+#[tauri::command]
+pub async fn get_database_stats() -> Result<serde_json::Value, String> {
+    use crate::database;
+    
+    match database::get_database_stats() {
+        Ok(stats) => Ok(stats),
+        Err(e) => Err(format!("獲取數據庫統計失敗: {}", e))
+    }
+}
+
+/// 備份數據庫
+#[tauri::command]
+pub async fn backup_database() -> Result<String, String> {
+    use crate::database;
+    
+    match database::backup_database() {
+        Ok(backup_path) => Ok(format!("數據庫已備份到: {}", backup_path)),
+        Err(e) => Err(format!("備份數據庫失敗: {}", e))
+    }
+}
+
+/// 恢復數據庫
+#[tauri::command]
+pub async fn restore_database(backup_path: String) -> Result<String, String> {
+    use crate::database;
+    
+    match database::restore_database(&backup_path) {
+        Ok(_) => Ok("數據庫恢復成功".to_string()),
+        Err(e) => Err(format!("恢復數據庫失敗: {}", e))
+    }
+}
+
+// ==================== 設計模組數據庫命令 ====================
+
+/// 從數據庫獲取設計模組列表
+#[tauri::command]
+pub async fn get_design_modules_from_db() -> Result<Vec<crate::database::DesignModule>, String> {
+    use crate::database;
+    
+    match database::DesignModule::list_all() {
+        Ok(modules) => Ok(modules),
+        Err(e) => Err(format!("從數據庫獲取設計模組失敗: {}", e))
+    }
+}
+
+/// 從數據庫獲取指定狀態的設計模組
+#[tauri::command]
+pub async fn get_design_modules_by_status_from_db(status: String) -> Result<Vec<crate::database::DesignModule>, String> {
+    use crate::database;
+    
+    match database::DesignModule::list_by_status(&status) {
+        Ok(modules) => Ok(modules),
+        Err(e) => Err(format!("從數據庫獲取設計模組失敗: {}", e))
+    }
+}
+
+/// 創建設計模組到數據庫
+#[tauri::command]
+pub async fn create_design_module_in_db(module: crate::database::DesignModule) -> Result<String, String> {
+    use crate::database;
+    
+    match module.create() {
+        Ok(_) => Ok("設計模組創建成功".to_string()),
+        Err(e) => Err(format!("創建設計模組失敗: {}", e))
+    }
+}
+
+/// 更新設計模組到數據庫
+#[tauri::command]
+pub async fn update_design_module_in_db(module: crate::database::DesignModule) -> Result<String, String> {
+    use crate::database;
+    
+    match module.update() {
+        Ok(_) => Ok("設計模組更新成功".to_string()),
+        Err(e) => Err(format!("更新設計模組失敗: {}", e))
+    }
+}
+
+/// 從數據庫刪除設計模組
+#[tauri::command]
+pub async fn delete_design_module_from_db(id: String) -> Result<String, String> {
+    use crate::database;
+    
+    match database::DesignModule::delete(&id) {
+        Ok(_) => Ok("設計模組刪除成功".to_string()),
+        Err(e) => Err(format!("刪除設計模組失敗: {}", e))
+    }
+}
+
+// ==================== 模板數據庫命令 ====================
+
+/// 從數據庫獲取模板列表
+#[tauri::command]
+pub async fn get_templates_from_db() -> Result<Vec<crate::database::Template>, String> {
+    use crate::database;
+    
+    match database::Template::list_all() {
+        Ok(templates) => Ok(templates),
+        Err(e) => Err(format!("從數據庫獲取模板失敗: {}", e))
+    }
+}
+
+/// 創建模板到數據庫
+#[tauri::command]
+pub async fn create_template_in_db(template: crate::database::Template) -> Result<String, String> {
+    use crate::database;
+    
+    match template.create() {
+        Ok(_) => Ok("模板創建成功".to_string()),
+        Err(e) => Err(format!("創建模板失敗: {}", e))
+    }
+}
+
+/// 更新模板到數據庫
+#[tauri::command]
+pub async fn update_template_in_db(template: crate::database::Template) -> Result<String, String> {
+    use crate::database;
+    
+    match template.update() {
+        Ok(_) => Ok("模板更新成功".to_string()),
+        Err(e) => Err(format!("更新模板失敗: {}", e))
+    }
+}
+
+/// 從數據庫刪除模板
+#[tauri::command]
+pub async fn delete_template_from_db(id: String) -> Result<String, String> {
+    use crate::database;
+    
+    match database::Template::delete(&id) {
+        Ok(_) => Ok("模板刪除成功".to_string()),
+        Err(e) => Err(format!("刪除模板失敗: {}", e))
+    }
+}
+
+// ==================== AI 規格數據庫命令 ====================
+
+/// 從數據庫獲取 AI 規格列表
+#[tauri::command]
+pub async fn get_ai_specs_from_db() -> Result<Vec<crate::database::AISpec>, String> {
+    use crate::database;
+    
+    match database::AISpec::list_all() {
+        Ok(specs) => Ok(specs),
+        Err(e) => Err(format!("從數據庫獲取 AI 規格失敗: {}", e))
+    }
+}
+
+/// 創建 AI 規格到數據庫
+#[tauri::command]
+pub async fn create_ai_spec_in_db(spec: crate::database::AISpec) -> Result<String, String> {
+    use crate::database;
+    
+    match spec.create() {
+        Ok(_) => Ok("AI 規格創建成功".to_string()),
+        Err(e) => Err(format!("創建 AI 規格失敗: {}", e))
+    }
+}
+
+/// 更新 AI 規格到數據庫
+#[tauri::command]
+pub async fn update_ai_spec_in_db(spec: crate::database::AISpec) -> Result<String, String> {
+    use crate::database;
+    
+    match spec.update() {
+        Ok(_) => Ok("AI 規格更新成功".to_string()),
+        Err(e) => Err(format!("更新 AI 規格失敗: {}", e))
+    }
+}
+
+/// 從數據庫刪除 AI 規格
+#[tauri::command]
+pub async fn delete_ai_spec_from_db(id: String) -> Result<String, String> {
+    use crate::database;
+    
+    match database::AISpec::delete(&id) {
+        Ok(_) => Ok("AI 規格刪除成功".to_string()),
+        Err(e) => Err(format!("刪除 AI 規格失敗: {}", e))
+    }
+}

@@ -1,4 +1,5 @@
 mod commands;
+mod database;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -45,6 +46,24 @@ pub fn run() {
       commands::generate_module_mermaid_html,
       commands::generate_module_crud_mermaid_html,
       commands::generate_page_mermaid_html,
+      // 新增的數據庫命令
+      commands::init_database,
+      commands::get_database_stats,
+      commands::backup_database,
+      commands::restore_database,
+      commands::get_design_modules_from_db,
+      commands::get_design_modules_by_status_from_db,
+      commands::create_design_module_in_db,
+      commands::update_design_module_in_db,
+      commands::delete_design_module_from_db,
+      commands::get_templates_from_db,
+      commands::create_template_in_db,
+      commands::update_template_in_db,
+      commands::delete_template_from_db,
+      commands::get_ai_specs_from_db,
+      commands::create_ai_spec_in_db,
+      commands::update_ai_spec_in_db,
+      commands::delete_ai_spec_from_db,
     ])
     .setup(|app| {
       // 設置 ErSlice 應用程式
@@ -69,8 +88,14 @@ pub fn run() {
 fn setup_erslice(_app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
   log::info!("ErSlice 前端切版說明包生成器啟動中...");
   
-        // 設置應用程式資訊 (在 Tauri 2.0 中需要通過其他方式設置)
-      log::info!("ErSlice 前端切版說明包生成器啟動");
+  // 設置應用程式資訊 (在 Tauri 2.0 中需要通過其他方式設置)
+  log::info!("ErSlice 前端切版說明包生成器啟動");
+  
+  // 初始化數據庫
+  match crate::database::init_database() {
+    Ok(_) => log::info!("數據庫初始化成功"),
+    Err(e) => log::warn!("數據庫初始化失敗: {}", e),
+  }
   
   // 初始化設計資產目錄
   init_design_assets_directory()?;
