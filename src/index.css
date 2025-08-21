@@ -11,6 +11,14 @@
   body {
     @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
   }
+
+  /* 前端樣式語義化（基礎字級與標題階層） */
+  h1, .heading-1 { @apply text-2xl md:text-3xl font-semibold leading-tight tracking-tight; }
+  h2, .heading-2 { @apply text-xl md:text-2xl font-semibold leading-snug; }
+  h3, .heading-3 { @apply text-lg md:text-xl font-semibold leading-snug; }
+  .subtitle    { @apply text-base text-gray-600 dark:text-gray-300; }
+  .text-body   { @apply text-sm md:text-base leading-relaxed; }
+  .text-caption{ @apply text-xs text-gray-500; }
 }
 
 @layer components {
@@ -26,4 +34,28 @@
   .card {
     @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700;
   }
+
+  /* 表格：統一樣式 */
+  .ui-table { @apply w-full text-sm; }
+  .ui-table thead { @apply bg-gray-50 dark:bg-gray-800/60; }
+  .ui-table th { @apply text-left font-semibold text-gray-700 dark:text-gray-200 px-4 py-2 border-b border-gray-200 dark:border-gray-700; }
+  .ui-table td { @apply px-4 py-2 border-b border-gray-100 dark:border-gray-800; }
+  .ui-table tbody tr:hover { @apply bg-gray-50/80 dark:bg-gray-800/40; }
+  .ui-table .is-numeric { @apply text-right; }
+
+  /* 列表/項目列統一樣式 */
+  .ui-list-row { @apply flex items-center justify-between px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800; }
+  .ui-list-row + .ui-list-row { @apply mt-2; }
+  .ui-list-row:hover { @apply bg-gray-50 dark:bg-gray-800/80; }
+
+  /* 分頁 */
+  .ui-pagination { @apply flex items-center gap-2; }
+  .ui-page-btn { @apply px-3 py-1 rounded-md border border-gray-200 dark:border-gray-700 text-sm hover:bg-gray-50 dark:hover:bg-gray-800; }
+  .ui-page-btn[aria-current="page"] { @apply bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800; }
+
+  /* 樹狀：縮排層級 */
+  .ui-tree-row { @apply flex items-center justify-between px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800; }
+  .ui-tree-depth-1 { @apply pl-4; }
+  .ui-tree-depth-2 { @apply pl-8; }
+  .ui-tree-depth-3 { @apply pl-12; }
 }

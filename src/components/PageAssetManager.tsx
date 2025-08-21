@@ -330,7 +330,7 @@ const PageAssetManager: React.FC<PageAssetManagerProps> = ({ moduleName, pageSlu
                 checked={assetType === (isResponsive ? 'responsive-screenshots' : 'screenshots')} 
                 onChange={() => setAssetType(isResponsive ? 'responsive-screenshots' : 'screenshots')} 
               /> 
-              截圖（Screenshots）
+              圖檔（SVG, PNG...）
             </label>
             <label className="flex items-center gap-2">
               <input 
@@ -406,7 +406,7 @@ const PageAssetManager: React.FC<PageAssetManagerProps> = ({ moduleName, pageSlu
           <div key={type}>
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {type === 'screenshots' ? '截圖（Screenshots）' : type === 'html' ? 'HTML' : 'CSS'} 
+                {type === 'screenshots' ? '圖檔（SVG, PNG...）' : type === 'html' ? 'HTML' : 'CSS'} 
                 {type === 'screenshots' ? '' : ' 文件'}
                 <span className="ml-2 text-xs text-gray-500">({currentAssets[type].length})</span>
               </h4>
