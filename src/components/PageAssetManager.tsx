@@ -256,7 +256,7 @@ const PageAssetManager: React.FC<PageAssetManagerProps> = ({ moduleName, pageSlu
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            📱 桌面版本
+            桌面版本
           </button>
           <button
             onClick={() => setActiveTab('responsive')}
@@ -266,7 +266,7 @@ const PageAssetManager: React.FC<PageAssetManagerProps> = ({ moduleName, pageSlu
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            📱 響應式版本
+            響應式版本
           </button>
         </nav>
       </div>
@@ -288,7 +288,7 @@ const PageAssetManager: React.FC<PageAssetManagerProps> = ({ moduleName, pageSlu
                 checked={assetType === (isResponsive ? 'responsive-screenshots' : 'screenshots')} 
                 onChange={() => setAssetType(isResponsive ? 'responsive-screenshots' : 'screenshots')} 
               /> 
-              📸 截圖
+              截圖（Screenshots）
             </label>
             <label className="flex items-center gap-2">
               <input 
@@ -297,7 +297,7 @@ const PageAssetManager: React.FC<PageAssetManagerProps> = ({ moduleName, pageSlu
                 checked={assetType === (isResponsive ? 'responsive-html' : 'html')} 
                 onChange={() => setAssetType(isResponsive ? 'responsive-html' : 'html')} 
               /> 
-              📄 HTML
+              HTML
             </label>
             <label className="flex items-center gap-2">
               <input 
@@ -306,7 +306,7 @@ const PageAssetManager: React.FC<PageAssetManagerProps> = ({ moduleName, pageSlu
                 checked={assetType === (isResponsive ? 'responsive-css' : 'css')} 
                 onChange={() => setAssetType(isResponsive ? 'responsive-css' : 'css')} 
               /> 
-              🎨 CSS
+              CSS
             </label>
           </div>
           <div className="flex items-center gap-2">
@@ -363,7 +363,7 @@ const PageAssetManager: React.FC<PageAssetManagerProps> = ({ moduleName, pageSlu
           <div key={type}>
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {type === 'screenshots' ? '📸 截圖' : type === 'html' ? '📄 HTML' : '🎨 CSS'} 
+                {type === 'screenshots' ? '截圖（Screenshots）' : type === 'html' ? 'HTML' : 'CSS'} 
                 {type === 'screenshots' ? '' : ' 文件'}
                 <span className="ml-2 text-xs text-gray-500">({currentAssets[type].length})</span>
               </h4>

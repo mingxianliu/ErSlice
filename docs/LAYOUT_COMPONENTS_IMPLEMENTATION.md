@@ -110,7 +110,7 @@ export const useBreakpoint = (): Breakpoint => {
 }
 ```
 
-## 🎨 側邊欄組件實現
+## 側邊欄組件實現
 
 ### 1. Sidebar 主組件
 
@@ -574,7 +574,7 @@ export const ResponsiveGrid: React.FC<ResponsiveGridProps> = ({
 }
 ```
 
-## 🎨 佈局工具函數
+## 佈局工具函數
 
 ### 1. 佈局計算工具
 

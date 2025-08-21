@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { FolderIcon, PlusIcon, ArrowPathIcon, XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
+import { FolderIcon, PlusIcon, ArrowPathIcon, XMarkIcon, ArrowUpTrayIcon, PhotoIcon, DocumentIcon, PaintBrushIcon, ComputerDesktopIcon, DevicePhoneMobileIcon, StarIcon } from '@heroicons/react/24/outline'
 import { useDesignModulesStore, selectFilteredSorted, selectPaged } from '../stores/designModules'
 import PageLayout from '../components/PageLayout'
 import SearchAndFilters from '../components/SearchAndFilters'
@@ -769,7 +769,7 @@ const DesignAssets: React.FC = () => {
                           }`}
                         >
                           {projectNames[slug] || slug}
-                          {isPrimary && <span className="ml-1 text-blue-600 dark:text-blue-400">★</span>}
+                          {isPrimary && <StarIcon className="ml-1 h-3 w-3 text-blue-600 dark:text-blue-400" aria-hidden="true" />}
                         </span>
                       )
                     })}
@@ -1070,7 +1070,7 @@ const DesignAssets: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center">
                       <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer transition-colors">
-                        <div className="text-3xl mb-2">📸</div>
+                        <PhotoIcon className="h-8 w-8 mx-auto mb-2 text-gray-600 dark:text-gray-300" aria-hidden="true" />
                         <h5 className="font-medium text-gray-900 dark:text-white">截圖</h5>
                         <p className="text-sm text-gray-600 dark:text-gray-400">PNG, JPG, SVG 等圖片格式</p>
                         <div className="mt-3">
@@ -1089,7 +1089,7 @@ const DesignAssets: React.FC = () => {
                     
                     <div className="text-center">
                       <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer transition-colors">
-                        <div className="text-3xl mb-2">📄</div>
+                        <DocumentIcon className="h-8 w-8 mx-auto mb-2 text-gray-600 dark:text-gray-300" aria-hidden="true" />
                         <h5 className="font-medium text-gray-900 dark:text-white">HTML</h5>
                         <p className="text-sm text-gray-600 dark:text-gray-400">HTML, HTM 等網頁文件</p>
                         <div className="mt-3">
@@ -1108,7 +1108,7 @@ const DesignAssets: React.FC = () => {
                     
                     <div className="text-center">
                       <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer transition-colors">
-                        <div className="text-3xl mb-2">🎨</div>
+                        <PaintBrushIcon className="h-8 w-8 mx-auto mb-2 text-gray-600 dark:text-gray-300" aria-hidden="true" />
                         <h5 className="font-medium text-gray-900 dark:text-white">CSS</h5>
                         <p className="text-sm text-gray-600 dark:text-gray-400">CSS, SCSS, SASS 等樣式文件</p>
                         <div className="mt-3">
@@ -1137,7 +1137,7 @@ const DesignAssets: React.FC = () => {
                       <div className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                         targetSize === 'desktop' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                       }`}>
-                        <div className="text-3xl mb-2">🖥️</div>
+                        <ComputerDesktopIcon className="h-8 w-8 mx-auto mb-2 text-gray-600 dark:text-gray-300" aria-hidden="true" />
                         <h5 className="font-medium text-gray-900 dark:text-white">桌面版</h5>
                         <p className="text-sm text-gray-600 dark:text-gray-400">1920×1080 等大螢幕尺寸</p>
                         <input
@@ -1155,7 +1155,7 @@ const DesignAssets: React.FC = () => {
                       <div className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                         targetSize === 'responsive' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                       }`}>
-                        <div className="text-3xl mb-2">📱</div>
+                        <DevicePhoneMobileIcon className="h-8 w-8 mx-auto mb-2 text-gray-600 dark:text-gray-300" aria-hidden="true" />
                         <h5 className="font-medium text-gray-900 dark:text-white">響應式</h5>
                         <p className="text-sm text-gray-600 dark:text-gray-400">手機、平板等小螢幕尺寸</p>
                         <input

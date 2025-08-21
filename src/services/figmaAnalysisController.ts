@@ -556,7 +556,7 @@ export class FigmaAnalysisController {
     
     // Phase 4: 設計系統分析
     const designSystem = await this.analyzeDesignSystem(importResult, processedAssets);
-    console.log('🎨 完成設計系統分析');
+    console.log('完成設計系統分析');
     
     // Phase 5: 代碼生成計劃
     const codeGeneration = await this.planCodeGeneration(dimensions, designSystem);

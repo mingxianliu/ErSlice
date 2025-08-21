@@ -401,7 +401,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({ item, actions }) => {
 }
 ```
 
-## 📱 響應式設計實現
+## 響應式設計實現
 
 ### 1. 響應式容器
 
@@ -442,7 +442,7 @@ export const ResponsiveContainer: React.FC<ResponsiveContainerProps> = ({
 }
 ```
 
-## 🎨 使用示例
+## 使用示例
 
 ### 1. 完整表格示例
 

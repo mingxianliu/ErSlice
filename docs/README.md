@@ -9,7 +9,7 @@
 - **[TODO.md](../TODO.md)** - 開發任務清單、進度追蹤、里程碑規劃
 - **[DEVELOPMENT_LOG.md](../DEVELOPMENT_LOG.md)** - 開發工作日誌、技術決策記錄
 
-### 🎨 前端設計指南
+### 前端設計指南
 - **[FRONTEND_INTERFACE_GUIDE.md](./FRONTEND_INTERFACE_GUIDE.md)** - 前端介面設計原則、佈局功能、資料介面設計
 - **[ERSLICE_UI_UX_IMPLEMENTATION_GUIDE.md](./ERSLICE_UI_UX_IMPLEMENTATION_GUIDE.md)** - UI/UX 實作導引、組件設計、資料流分析
 

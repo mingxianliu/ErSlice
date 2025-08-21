@@ -206,7 +206,7 @@ async function main() {
     await startTauriDev()
     
     console.log(`\n🎉 開發環境已啟動`)
-    console.log(`📱 前端服務器: http://127.0.0.1:${port}`)
+    console.log(`前端服務器: http://127.0.0.1:${port}`)
     console.log(`🦀 Tauri 應用已連接`)
     console.log(`\n按 Ctrl+C 停止開發服務器`)
     

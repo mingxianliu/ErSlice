@@ -831,8 +831,8 @@ module.exports = {
   private static generateFeatureList(erIDL: ErIDL, texts: Record<string, string>): string {
     const features = [
       `✨ ${erIDL.design.components.length} 個高品質組件`,
-      `🎨 完整的設計系統支援`,
-      `📱 響應式設計`,
+      `完整的設計系統支援`,
+      `響應式設計`,
       `♿ 無障礙性支援`,
       `🧪 完整的測試覆蓋`,
       `📚 詳細的文檔`,
