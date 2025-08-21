@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { 
+  PlusIcon, 
+  MagnifyingGlassIcon, 
+  FunnelIcon, 
+  ArrowPathIcon, 
   ArchiveBoxIcon,
-  MagnifyingGlassIcon,
-  FolderIcon,
-  PencilIcon,
-  TrashIcon,
   EyeIcon,
-  DocumentIcon,
-  CodeBracketIcon,
-  CalendarIcon,
-  ClockIcon,
-  ArrowPathIcon
+  TrashIcon,
+  XMarkIcon,
+  CheckIcon,
+  DocumentArrowDownIcon
 } from '@heroicons/react/24/outline'
+import { Button } from '../components/ui/Button'
 
 // 切版包介面
 interface SlicePackage {
@@ -298,14 +298,14 @@ const SlicePackages: React.FC = () => {
               <option value="error">錯誤</option>
             </select>
             
-            <button
+            <Button
               onClick={loadPackages}
               disabled={loading}
               className="btn-secondary flex items-center gap-2"
             >
               <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               重新整理
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -403,7 +403,7 @@ const SlicePackages: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       <div className="space-y-1">
                         <div className="flex items-center">
-                          <DocumentIcon className="h-4 w-4 mr-1" />
+                          <DocumentArrowDownIcon className="h-4 w-4 mr-1" />
                           HTML: {pkg.files.html}
                         </div>
                         <div className="flex items-center">

@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
+import { Button } from './ui/Button'
 
 // 頁面佈局統一規範組件
 interface PageLayoutProps {
@@ -58,15 +59,16 @@ const PageLayout: React.FC<PageLayoutProps> = ({
         <div className="flex items-center gap-3 ml-auto">
           {actions}
           {showRefreshButton && onRefresh && (
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={onRefresh}
               disabled={refreshLoading}
-              className="btn-secondary flex items-center gap-2"
               title="重新整理"
             >
-              <ArrowPathIcon className={`h-5 w-5 ${refreshLoading ? 'animate-spin' : ''}`} />
+              <ArrowPathIcon className={`h-4 w-4 ${refreshLoading ? 'animate-spin' : ''}`} />
               重新整理
-            </button>
+            </Button>
           )}
         </div>
       </div>

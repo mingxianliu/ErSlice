@@ -1102,9 +1102,14 @@ const DesignModuleDetail: React.FC = () => {
             >
               打開輸出資料夾
             </button>
-            <button className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={refreshAssets} disabled={!store.tauriAvailable}>
-              <ArrowPathIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" /> 重新整理
-            </button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={refreshAssets}
+              disabled={!store.tauriAvailable}
+            >
+              <ArrowPathIcon className="h-4 w-4" /> 重新整理
+            </Button>
           </div>
         </div>
 

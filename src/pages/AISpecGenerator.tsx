@@ -19,6 +19,7 @@ import { AISpecType, AISpecFormat } from '../types/aiSpec'
 // 匯入本專案前端規範（摘要版）原始 Markdown 內容做為預覽來源（Vite ?raw）
 // 匯入失敗時會有 fallback 至規格描述文字
 import FrontendStyleGuideMd from '../../docs/FRONTEND_STYLE_GUIDE.md?raw'
+import { Button } from '../components/ui/Button'
 
 // AI規格介面
 interface AISpec {
@@ -509,14 +510,15 @@ const AISpecGenerator: React.FC = () => {
               AI規格列表 ({filteredSpecs.length})
             </h2>
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={loadSpecs}
                 disabled={loading}
-                className="btn-secondary flex items-center gap-2"
               >
                 <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 重新整理
-              </button>
+              </Button>
             </div>
           </div>
         </div>

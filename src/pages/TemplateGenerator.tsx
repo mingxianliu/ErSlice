@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { 
-  DocumentTextIcon, 
-  CodeBracketIcon, 
-  EyeIcon, 
-  FunnelIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
+  PlusIcon, 
+  MagnifyingGlassIcon, 
+  FunnelIcon, 
+  ArrowPathIcon, 
+  BuildingLibraryIcon,
+  DocumentTextIcon,
   PencilIcon,
   TrashIcon,
-  ArrowPathIcon,
-  CalendarIcon,
-  ClockIcon,
-  BuildingLibraryIcon
+  EyeIcon,
+  XMarkIcon,
+  CheckIcon
 } from '@heroicons/react/24/outline'
+import { Button } from '../components/ui/Button'
 import { templates } from '../data/templates'
 import { TemplateCategory, TemplateComplexity } from '../types/templates'
 
@@ -321,14 +321,15 @@ const TemplateGenerator: React.FC = () => {
               模板列表 ({filteredTemplates.length})
             </h2>
             <div className="flex items-center gap-2">
-              <button
+              <Button
                 onClick={loadTemplates}
                 disabled={loading}
-                className="btn-secondary flex items-center gap-2"
+                variant="secondary"
+                size="sm"
               >
                 <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 重新整理
-              </button>
+              </Button>
             </div>
           </div>
         </div>

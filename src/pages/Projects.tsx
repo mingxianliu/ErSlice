@@ -1,25 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { useToast } from '@/components/ui/Toast'
-import { useProjectStore } from '@/stores/project'
-import { Link } from 'react-router-dom'
+import { useProjectStore } from '../stores/project'
+import { useToast } from '../components/ui/Toast'
+import { createProject, deleteProject, switchProject, listProjects, getDefaultProject } from '../utils/tauriCommands'
 import { ArrowPathIcon, XMarkIcon, FolderIcon, ArchiveBoxIcon, PaintBrushIcon } from '@heroicons/react/24/outline'
-import { 
-  listProjects, 
-  createProject, 
-  deleteProject, 
-  switchProject, 
-  generateProjectMermaid,
-  generateProjectMermaidHtml,
-  generateModuleMermaidHtml,
-  generateModuleCrudMermaidHtml,
-  generateUserWorkflowMermaidHtml,
-  exportSitemap,
-  importSitemap,
-  generateUnifiedSlicePackage,
-  updateDefaultProject,
-  getDefaultProject,
-  OverwriteStrategy
-} from '@/utils/tauriCommands'
+import { Button } from '../components/ui/Button'
 import { useDesignModulesStore } from '@/stores/designModules'
 
 const Projects: React.FC = () => {
@@ -261,7 +245,7 @@ const Projects: React.FC = () => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">專案列表</h2>
-          <button className="btn-secondary" onClick={refresh} disabled={!tauri || loading}>重新整理</button>
+          <Button onClick={refresh} disabled={!tauri || loading} size="sm">重新整理</Button>
         </div>
         {loading ? (
           <div className="text-sm text-gray-500">讀取中...</div>
@@ -330,7 +314,7 @@ const Projects: React.FC = () => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">專案列表</h2>
-          <button className="btn-secondary" onClick={refresh} disabled={!tauri || loading}>重新整理</button>
+          <Button onClick={refresh} disabled={!tauri || loading} size="sm">重新整理</Button>
         </div>
         {loading ? (
           <div className="text-sm text-gray-500">讀取中...</div>

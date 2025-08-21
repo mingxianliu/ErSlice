@@ -4,6 +4,7 @@ import { uploadDesignAsset, listAssets, deleteDesignAsset, AssetList } from '../
 import { useToast } from './ui/Toast'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { useDesignModulesStore } from '../stores/designModules'
+import { Button } from './ui/Button'
 
 interface PageAssetManagerProps {
   moduleName: string
@@ -361,13 +362,14 @@ const PageAssetManager: React.FC<PageAssetManagerProps> = ({ moduleName, pageSlu
               {uploading ? '上傳中...' : '選擇文件並上傳'}
             </button>
             <span className="text-xs text-gray-500">或將檔案直接拖放到此區塊</span>
-            <button 
+            <Button 
               className="btn-secondary flex items-center gap-2" 
               onClick={refreshAssets} 
               disabled={!store.tauriAvailable}
+              size="sm"
             >
               <ArrowPathIcon className="h-5 w-5" />
-            </button>
+            </Button>
           </div>
         </div>
         

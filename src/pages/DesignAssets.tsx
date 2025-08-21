@@ -10,6 +10,7 @@ import { loadSettings } from '@/utils/settings'
 import { useProjectStore } from '@/stores/project'
 import { useToast } from '../components/ui/Toast'
 import { useNavigate } from 'react-router-dom'
+import { Button } from '../components/ui/Button'
 
 const DesignAssets: React.FC = () => {
   const store = useDesignModulesStore()
@@ -367,52 +368,57 @@ const DesignAssets: React.FC = () => {
   // 準備統一佈局的 props
   const actionsButtons = (
     <>
-      <button 
-        className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-200 dark:border-blue-400 bg-gradient-to-r from-blue-200 to-blue-300 dark:from-blue-400 dark:to-blue-500 text-white hover:from-blue-300 hover:to-blue-400 dark:hover:from-blue-500 dark:hover:to-blue-600 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" 
+      <Button 
+        variant="primary"
+        size="md"
         onClick={() => setOpenCreate(true)} 
         disabled={store.viewArchived}
         aria-label="新增模組"
       >
-        <PlusIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+        <PlusIcon className="h-5 w-5" />
         新增模組
-      </button>
+      </Button>
       {!store.viewArchived && (
         <>
-          <button
+          <Button
+            variant="secondary"
+            size="md"
             onClick={() => setOpenQuickImport(true)}
-            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-green-200 dark:border-green-400 bg-gradient-to-r from-green-200 to-green-300 dark:from-green-400 dark:to-green-500 text-white hover:from-green-300 hover:to-green-400 dark:hover:from-green-500 dark:hover:to-green-600 hover:border-green-300 dark:hover:border-green-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
             title="快速匯入截圖、HTML、CSS 等資產到指定模組"
           >
-            <ArrowUpTrayIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+            <ArrowUpTrayIcon className="h-5 w-5" />
             快速匯入資產
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
+            size="md"
             onClick={() => setOpenBulkGen(true)}
-            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-emerald-200 dark:border-emerald-400 bg-gradient-to-r from-emerald-200 to-emerald-300 dark:from-emerald-400 dark:to-emerald-500 text-emerald-900 dark:text-white hover:from-emerald-300 hover:to-emerald-400 dark:hover:from-emerald-500 dark:hover:border-emerald-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
             title="一鍵為所有現行模組生成切版說明包"
           >
             一鍵生成全部
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
+            size="md"
             onClick={() => setOpenFigmaExport(true)}
-            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
             title="將ErSlice中的設計模組、切圖資產等轉換為Figma可匯入的標準格式，支援設計令牌、組件結構等"
           >
-            <ArrowUpTrayIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+            <ArrowUpTrayIcon className="h-5 w-5" />
             導出至Figma
-          </button>
+          </Button>
         </>
       )}
-      <button
+      <Button
+        variant={store.viewArchived ? "warning" : "secondary"}
+        size="md"
         onClick={async () => {
           store.setViewArchived(!store.viewArchived)
           await store.refresh()
         }}
-        className={`group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md ${store.viewArchived ? 'border-amber-300 dark:border-amber-500 bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 text-amber-700 dark:text-amber-300' : ''}`}
         title={store.viewArchived ? '切換至現行模組' : '切換至封存模組'}
       >
         {store.viewArchived ? '查看現行' : '查看封存'}
-      </button>
+      </Button>
     </>
   )
 
@@ -495,20 +501,22 @@ const DesignAssets: React.FC = () => {
         共 {total} 筆，頁 {current}/{pageCount}
       </div>
       <div className="flex items-center gap-2">
-        <button
-          className="btn-secondary px-3 py-1 text-sm"
+        <Button
+          variant="secondary"
+          size="sm"
           disabled={current <= 1}
           onClick={() => store.setPage(current - 1)}
         >
           上一頁
-        </button>
-        <button
-          className="btn-secondary px-3 py-1 text-sm"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           disabled={current >= pageCount}
           onClick={() => store.setPage(current + 1)}
         >
           下一頁
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -650,9 +658,10 @@ const DesignAssets: React.FC = () => {
               <p className="text-xs text-gray-500 dark:text-gray-400">將輸出到 output/slice-package-YYYYMMDD-HHMMSS/，包含 design-assets、ai-docs、modules/。</p>
             </div>
             <div className="mt-6 flex items-center justify-end gap-2">
-              <button className="btn-secondary" onClick={() => setOpenUnified(false)}>取消</button>
-              <button
-                className="btn-primary"
+              <Button variant="secondary" size="md" onClick={() => setOpenUnified(false)}>取消</Button>
+              <Button
+                variant="primary"
+                size="md"
                 disabled={!store.tauriAvailable}
                 onClick={async () => {
                   if (!store.tauriAvailable) return
@@ -677,7 +686,7 @@ const DesignAssets: React.FC = () => {
                 }}
               >
                 開始導出
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -696,13 +705,13 @@ const DesignAssets: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               {!store.viewArchived ? (
-                <button className="btn-secondary text-sm" onClick={doArchiveSelected}>封存</button>
+                <Button variant="secondary" size="sm" onClick={doArchiveSelected}>封存</Button>
               ) : (
-                <button className="btn-secondary text-sm" onClick={doUnarchiveSelected}>還原</button>
+                <Button variant="secondary" size="sm" onClick={doUnarchiveSelected}>還原</Button>
               )}
-              <button className="btn-secondary text-sm" onClick={() => { store.updateLocalStatuses(selectedIds, 'draft'); clearSelection() }}>標記草稿</button>
-              <button className="btn-secondary text-sm" onClick={clearSelection}>清除選取</button>
-              <button className="btn-secondary text-sm" onClick={doDeleteSelected}>刪除</button>
+              <Button variant="secondary" size="sm" onClick={() => { store.updateLocalStatuses(selectedIds, 'draft'); clearSelection() }}>標記草稿</Button>
+              <Button variant="secondary" size="sm" onClick={clearSelection}>清除選取</Button>
+              <Button variant="danger" size="sm" onClick={doDeleteSelected}>刪除</Button>
             </div>
           </div>
         )}
@@ -793,22 +802,28 @@ const DesignAssets: React.FC = () => {
             <div className="mt-4 flex space-x-2">
               {store.viewArchived ? (
                 <>
-                  <button
-                    className="flex-1 btn-secondary text-sm py-2"
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1"
                     onClick={() => openFolder(module.name, true)}
                     disabled={!store.tauriAvailable}
                   >
                     打開資料夾
-                  </button>
-                  <button
-                    className="flex-1 btn-secondary text-sm py-2"
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1"
                     onClick={() => openOutputFolder(module.name)}
                     disabled={!store.tauriAvailable}
                   >
                     打開輸出資料夾
-                  </button>
-                  <button
-                    className="flex-1 btn-primary text-sm py-2"
+                  </Button>
+                  <Button
+                    variant="success"
+                    size="sm"
+                    className="flex-1"
                     onClick={async () => {
                       try {
                         if (store.tauriAvailable) {
@@ -829,9 +844,11 @@ const DesignAssets: React.FC = () => {
                     }}
                   >
                     還原
-                  </button>
-                  <button
-                    className="flex-1 btn-secondary text-sm py-2"
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    className="flex-1"
                     onClick={async () => {
                       if (!confirm(`確認刪除模組「${module.name}」？此動作不可回復`)) return
                       try {
@@ -851,25 +868,29 @@ const DesignAssets: React.FC = () => {
                     }}
                   >
                     刪除
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button className="flex-1 btn-primary text-sm py-2" onClick={() => navigate(`/design-assets/${encodeURIComponent(module.name)}`)}>管理資產</button>
-                  <button
-                    className="flex-1 btn-secondary text-sm py-2"
+                  <Button variant="primary" size="sm" className="flex-1" onClick={() => navigate(`/design-assets/${encodeURIComponent(module.name)}`)}>管理資產</Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1"
                     onClick={() => openFolder(module.name, false)}
                     disabled={!store.tauriAvailable}
                   >
                     打開資料夾
-                  </button>
-                  <button
-                    className="flex-1 btn-secondary text-sm py-2"
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1"
                     onClick={() => openOutputFolder(module.name)}
                     disabled={!store.tauriAvailable}
                   >
                     打開輸出資料夾
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -934,9 +955,10 @@ const DesignAssets: React.FC = () => {
             </div>
 
             <div className="mt-6 flex items-center justify-end gap-2">
-              <button className="btn-secondary" onClick={() => setOpenCreate(false)} disabled={submitting}>取消</button>
-              <button
-                className="btn-primary"
+              <Button variant="secondary" size="md" onClick={() => setOpenCreate(false)} disabled={submitting}>取消</Button>
+              <Button
+                variant="primary"
+                size="md"
                 disabled={submitting || !name.trim()}
                 onClick={async () => {
                   const trimmed = name.trim()
@@ -1004,7 +1026,7 @@ const DesignAssets: React.FC = () => {
                 }}
               >
                 {submitting ? '建立中...' : '建立'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -1249,9 +1271,10 @@ const DesignAssets: React.FC = () => {
               <p className="text-xs text-gray-500 dark:text-gray-400">將為當前「現行模組」目錄底下的所有模組產生說明包，輸出到 output/&lt;module&gt;/</p>
             </div>
             <div className="mt-6 flex items-center justify-end gap-2">
-              <button className="btn-secondary" onClick={() => setOpenBulkGen(false)} disabled={bulkRunning}>取消</button>
-              <button
-                className="btn-primary"
+              <Button variant="secondary" size="md" onClick={() => setOpenBulkGen(false)} disabled={bulkRunning}>取消</Button>
+              <Button
+                variant="primary"
+                size="md"
                 disabled={!store.tauriAvailable || bulkRunning}
                 onClick={async () => {
                   if (!store.tauriAvailable) return
@@ -1287,7 +1310,7 @@ const DesignAssets: React.FC = () => {
                 }}
               >
                 {bulkRunning ? '執行中…' : '開始生成'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -1462,8 +1485,9 @@ const ProjectSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         </div>
         <div className="mt-6 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <button
-              className="btn-secondary"
+            <Button
+              variant="secondary"
+              size="md"
               onClick={async () => {
                 if (!tauri) return
                 try {
@@ -1480,11 +1504,11 @@ const ProjectSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
               title="生成 Mermaid 站點圖並開啟 HTML 預覽"
             >
               生成站點圖 HTML
-            </button>
+            </Button>
           </div>
           <div className="flex items-center gap-2">
-            <button className="btn-secondary" onClick={onClose} disabled={saving}>取消</button>
-            <button className="btn-primary" onClick={save} disabled={saving}>{saving ? '儲存中…' : '儲存設定'}</button>
+            <Button variant="secondary" size="md" onClick={onClose} disabled={saving}>取消</Button>
+            <Button variant="primary" size="md" onClick={save} disabled={saving}>{saving ? '儲存中…' : '儲存設定'}</Button>
           </div>
         </div>
       </div>
