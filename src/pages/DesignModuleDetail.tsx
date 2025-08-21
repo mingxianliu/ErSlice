@@ -7,6 +7,7 @@ import MetaEditorModal from '../components/MetaEditorModal'
 import PageAssetManager from '../components/PageAssetManager'
 import { useToast } from '../components/ui/Toast'
 import { convertFileSrc } from '@tauri-apps/api/core'
+import { Button } from '../components/ui/Button'
 
 const DesignModuleDetail: React.FC = () => {
   const { name: routeName } = useParams()
@@ -316,12 +317,13 @@ const DesignModuleDetail: React.FC = () => {
                   }
                 }}
               >
-                <div className="flex items-center justify-between px-3 py-3 min-h-[60px]">
+                <div className="ui-tree-row ui-tree-depth-1 min-h-[60px]">
                   <div className="text-sm text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={selectedPages.has(p.slug)}
                       onChange={() => togglePageSelection(p.slug)}
+                      aria-label={`選擇頁面 ${p.slug}`}
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
                     <button
@@ -343,6 +345,7 @@ const DesignModuleDetail: React.FC = () => {
                     <input
                       value={renaming.to}
                       onChange={(e) => setRenaming({ slug: p.slug, to: e.target.value })}
+                      aria-label="頁面重新命名"
                       className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white"
                     />
                     <button className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-green-500 dark:border-green-600 bg-gradient-to-r from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 text-white hover:from-green-600 hover:to-green-700 dark:hover:from-green-700 dark:hover:to-green-800 hover:border-green-600 dark:hover:border-green-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={async () => {
@@ -554,7 +557,7 @@ const DesignModuleDetail: React.FC = () => {
                         p.children.map((c, cidx) => (
                           <div
                             key={c.slug}
-                            className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded px-3 py-2 ml-6 bg-gray-50 dark:bg-gray-800/50"
+                            className="ui-tree-row ui-tree-depth-2 bg-gray-50 dark:bg-gray-800/50"
                             draggable
                             onDragStart={() => setDrag({ kind: 'sub', parent: p.slug, slug: c.slug })}
                             onDragOver={(e) => {
@@ -593,6 +596,7 @@ const DesignModuleDetail: React.FC = () => {
                               <input
                                 value={renaming.to}
                                 onChange={(e) => setRenaming({ slug: `${p.slug}/${c.slug}`, to: e.target.value })}
+                                aria-label="子頁重新命名"
                                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-emerald-300 dark:focus:ring-emerald-500 focus:border-emerald-300 dark:focus:border-emerald-500 transition-all duration-200"
                               />
                               <button className="group relative px-3 py-2 text-sm font-medium rounded-lg border border-emerald-300 dark:border-emerald-400 bg-gradient-to-r from-emerald-300 to-emerald-400 dark:from-emerald-400 dark:to-emerald-500 text-white hover:from-emerald-400 hover:to-emerald-500 dark:hover:from-emerald-500 dark:hover:to-emerald-600 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={async () => {
@@ -754,13 +758,14 @@ const DesignModuleDetail: React.FC = () => {
             <ArrowLeftIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" /> 返回
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{moduleName}</h1>
-            <p className="text-gray-600 dark:text-gray-400">模組詳情與資產管理</p>
+            <h1 className="heading-1 text-gray-900 dark:text-white">{moduleName}</h1>
+            <p className="subtitle">模組詳情與資產管理</p>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <button
-            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+          <Button
+            variant="secondary"
+            size="md"
             onClick={async () => {
               if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
               try {
@@ -773,19 +778,21 @@ const DesignModuleDetail: React.FC = () => {
               }
             }}
             disabled={!store.tauriAvailable}
+            leftIcon={<FolderIcon className="h-4 w-4" />}
           >
-            <FolderIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
             {store.viewArchived ? '打開封存資料夾' : '打開模組資料夾'}
-          </button>
-          <button 
-            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-yellow-200 dark:border-yellow-600 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30 text-yellow-700 dark:text-yellow-300 hover:from-yellow-100 hover:to-yellow-200 dark:hover:from-yellow-800/40 dark:hover:to-yellow-700/40 hover:border-yellow-300 dark:hover:border-yellow-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" 
+          </Button>
+          <Button 
+            variant="warning"
+            size="md"
             onClick={doArchiveModule} 
             disabled={!store.tauriAvailable}
           >
             封存模組
-          </button>
-          <button
-            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-green-200 dark:border-green-600 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 text-green-700 dark:text-green-300 hover:from-green-100 hover:to-green-200 dark:hover:from-green-800/40 dark:hover:to-green-700/40 hover:border-green-300 dark:hover:border-green-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+          </Button>
+          <Button
+            variant="success"
+            size="md"
             onClick={async () => {
               if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
               try {
@@ -801,14 +808,15 @@ const DesignModuleDetail: React.FC = () => {
             disabled={!store.tauriAvailable}
           >
             還原模組
-          </button>
-          <button 
-            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-600 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 text-red-700 dark:text-red-300 hover:from-red-100 hover:to-red-200 dark:hover:from-red-800/40 dark:hover:to-red-700/40 hover:border-red-300 dark:hover:border-red-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" 
+          </Button>
+          <Button 
+            variant="danger"
+            size="md"
             onClick={doDeleteModule} 
             disabled={!store.tauriAvailable}
           >
             刪除模組
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -816,12 +824,13 @@ const DesignModuleDetail: React.FC = () => {
       <div className="card p-6">
         <div className="space-y-4 mb-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h2 className="heading-2 text-gray-900 dark:text-white">
               頁面 <span className="text-sm text-gray-500 font-normal">({tree.length} 個)</span>
             </h2>
             <div className="flex items-center gap-2 flex-wrap">
-              <button
-                className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800 text-blue-700 dark:text-blue-300 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={async () => {
                   if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
                   try {
@@ -836,12 +845,13 @@ const DesignModuleDetail: React.FC = () => {
                 }}
                 disabled={!store.tauriAvailable}
                 title="生成並顯示模組內所有頁面的層級結構關係圖，幫助理解頁面之間的組織架構"
+                leftIcon={<MapIcon className="h-4 w-4" />}
               >
-                <MapIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
                 模組站點圖
-              </button>
-              <button
-                className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-800 text-green-700 dark:text-green-300 hover:from-green-100 hover:to-emerald-100 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-green-300 dark:hover:border-green-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={async () => {
                   if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
                   try {
@@ -856,12 +866,13 @@ const DesignModuleDetail: React.FC = () => {
                 }}
                 disabled={!store.tauriAvailable}
                 title="生成顯示新增(Create)、讀取(Read)、更新(Update)、刪除(Delete)操作流程的關係圖，用於理解資料操作流程"
+                leftIcon={<DocumentIcon className="h-4 w-4" />}
               >
-                <DocumentIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
                 CRUD 圖
-              </button>
-              <button
-                className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-gray-700 dark:to-gray-800 text-purple-700 dark:text-purple-300 hover:from-purple-100 hover:to-violet-100 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-purple-300 dark:hover:border-purple-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={async () => {
                   if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
                   try {
@@ -876,10 +887,10 @@ const DesignModuleDetail: React.FC = () => {
                 }}
                 disabled={!store.tauriAvailable}
                 title="生成用戶操作流程圖，顯示從用戶角度看系統如何運作，包含用戶動作、系統回應、資料流動等流程"
+                leftIcon={<ChartBarIcon className="h-4 w-4" />}
               >
-                <ChartBarIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
                 工作流程圖
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -890,6 +901,7 @@ const DesignModuleDetail: React.FC = () => {
                 <input
                   type="text"
                   placeholder="搜尋頁面"
+                  aria-label="搜尋頁面"
                   value={pageFilter}
                   onChange={(e) => setPageFilter(e.target.value)}
                   className="w-48 pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-all duration-200"
