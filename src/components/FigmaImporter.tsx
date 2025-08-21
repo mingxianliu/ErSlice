@@ -16,6 +16,8 @@ import {
   FigmaAnalysisController, 
   ComprehensiveAnalysisResult 
 } from '@/services/figmaAnalysisController'
+import { Button } from '@/components/ui/Button'
+import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 
 // Figma 資產介面
 interface FigmaAsset {
@@ -292,40 +294,31 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
 
       {/* 匯入方式選擇 */}
       <div className="flex justify-center space-x-4">
-        <button
+        <Button
           onClick={() => setImportMethod('files')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            importMethod === 'files'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-          }`}
+          variant="secondary"
+          size="md"
         >
           <PhotoIcon className="h-5 w-5 inline mr-2" />
           檔案上傳
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => setImportMethod('zip')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            importMethod === 'zip'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-          }`}
+          variant="secondary"
+          size="md"
         >
           <FolderIcon className="h-5 w-5 inline mr-2" />
           ZIP 檔案
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => setImportMethod('api')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            importMethod === 'api'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-          }`}
+          variant="secondary"
+          size="md"
           disabled
         >
           <CloudArrowUpIcon className="h-5 w-5 inline mr-2" />
           Figma API (即將推出)
-        </button>
+        </Button>
       </div>
 
       {/* 高級分析設定 */}
@@ -566,27 +559,28 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
 
       {/* 操作按鈕 */}
       <div className="flex justify-end space-x-3">
-        <button
+        <Button
           onClick={onCancel}
-          className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow-md"
-          disabled={processing || analyzing}
+          variant="secondary"
+          size="md"
         >
           取消
-        </button>
+        </Button>
         {previewAssets.length > 0 && (
-          <button
+          <Button
             onClick={handleImportComplete}
-            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-md"
+            variant="primary"
+            size="md"
             disabled={processing || analyzing || !projectName.trim()}
           >
-            <CheckCircleIcon className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform duration-200" />
+            <CheckCircleIcon className="h-5 w-5 mr-2" />
             匯入 {previewAssets.length} 個資產
             {analysisResult && (
               <span className="ml-2 text-xs bg-white bg-opacity-20 px-2 py-1 rounded">
                 +智能分析
               </span>
             )}
-          </button>
+          </Button>
         )}
       </div>
     </div>

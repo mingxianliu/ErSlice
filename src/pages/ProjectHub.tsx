@@ -28,6 +28,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
 import { listProjects, createProject, deleteProject, switchProject, isTauriEnvironment } from '@/utils/tauriCommands'
+import { Button } from '@/components/ui/Button'
 
 // 專案介面
 interface Project {
@@ -815,13 +816,14 @@ const ProjectHub: React.FC = () => {
 
   // 準備統一佈局的 props
   const actionsButtons = (
-    <button
+    <Button
+      variant="primary"
+      size="md"
       onClick={() => setShowCreateModal(true)}
-      className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
     >
-      <PlusIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+      <PlusIcon className="h-5 w-5" />
       建立專案
-    </button>
+    </Button>
   )
 
   const searchAndFiltersProps = (

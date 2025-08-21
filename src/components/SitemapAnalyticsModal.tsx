@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { XMarkIcon, ChartBarIcon } from '@heroicons/react/24/outline'
 import { analyzeSitemap, SitemapAnalytics } from '../utils/tauriCommands.ts'
 import { useToast } from './ui/Toast'
+import { Button } from './ui/Button'
+import { ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 
 interface SitemapAnalyticsModalProps {
   isOpen: boolean
@@ -32,6 +34,14 @@ const SitemapAnalyticsModal: React.FC<SitemapAnalyticsModalProps> = ({ isOpen, o
   }
 
   if (!isOpen) return null
+
+  const handleExport = () => {
+    if (analytics) {
+      // This function would typically trigger a Tauri command to export the data
+      // For now, we'll just show a toast message
+      showError('匯出功能待實作', '此功能尚未完全開發，請手動複製數據。')
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -218,27 +228,32 @@ const SitemapAnalyticsModal: React.FC<SitemapAnalyticsModalProps> = ({ isOpen, o
           ) : (
             <div className="text-center py-12">
               <p className="text-gray-600 dark:text-gray-400">無法載入分析數據</p>
-              <button 
+              <Button 
                 className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 shadow-md hover:shadow-lg mt-4" 
                 onClick={loadAnalytics}
               >
                 重新分析
-              </button>
+              </Button>
             </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
-          <button className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow-md" onClick={onClose}>關閉</button>
-          {analytics && (
-            <button 
-              className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 shadow-md hover:shadow-md" 
-              onClick={loadAnalytics}
-              disabled={loading}
-            >
-              重新分析
-            </button>
-          )}
+        <div className="flex justify-end gap-3 mt-6">
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={onClose}
+          >
+            關閉
+          </Button>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={handleExport}
+          >
+            <ArrowDownTrayIcon className="h-5 w-5" />
+            匯出報告
+          </Button>
         </div>
       </div>
     </div>

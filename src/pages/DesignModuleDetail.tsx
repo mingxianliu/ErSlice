@@ -619,19 +619,31 @@ const DesignModuleDetail: React.FC = () => {
                                 aria-label="子頁重新命名"
                                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-emerald-300 dark:focus:ring-emerald-500 focus:border-emerald-300 dark:focus:border-emerald-500 transition-all duration-200"
                               />
-                              <button className="group relative px-3 py-2 text-sm font-medium rounded-lg border border-emerald-300 dark:border-emerald-400 bg-gradient-to-r from-emerald-300 to-emerald-400 dark:from-emerald-400 dark:to-emerald-500 text-white hover:from-emerald-400 hover:to-emerald-500 dark:hover:from-emerald-500 dark:hover:to-emerald-600 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={async () => {
-                                if (!renaming) return
-                                try {
-                                  await renameSubpage(moduleName, p.slug, c.slug, renaming.to)
-                                  setRenaming(null)
-                                  await refreshPages()
-                                  showSuccess('已重新命名')
-                                } catch (e) {
-                                  const m = e instanceof Error ? e.message : String(e)
-                                  showError('重新命名失敗', m)
-                                }
-                              }}>確定</button>
-                              <button className="group relative px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-400 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-500 dark:to-gray-600 text-gray-700 dark:text-gray-100 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-400 dark:hover:to-gray-500 hover:border-gray-400 dark:hover:border-gray-300 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={() => setRenaming(null)}>取消</button>
+                              <Button
+                                variant="success"
+                                size="sm"
+                                onClick={async () => {
+                                  if (!renaming) return
+                                  try {
+                                    await renameSubpage(moduleName, p.slug, c.slug, renaming.to)
+                                    setRenaming(null)
+                                    await refreshPages()
+                                    showSuccess('已重新命名')
+                                  } catch (e) {
+                                    const m = e instanceof Error ? e.message : String(e)
+                                    showError('重新命名失敗', m)
+                                  }
+                                }}
+                              >
+                                確定
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => setRenaming(null)}
+                              >
+                                取消
+                              </Button>
                             </>
                           ) : (
                             <div className="flex items-center gap-2">
@@ -774,9 +786,14 @@ const DesignModuleDetail: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/design-assets" className="group relative inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 shadow-sm hover:shadow-md">
-            <ArrowLeftIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" /> 返回
-          </Link>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => navigate('/design-assets')}
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+            返回
+          </Button>
           <div>
             <h1 className="heading-1 text-gray-900 dark:text-white">{moduleName}</h1>
             <p className="subtitle">模組詳情與資產管理</p>
@@ -959,27 +976,30 @@ const DesignModuleDetail: React.FC = () => {
                   <span className="text-sm font-medium text-blue-700 dark:text-blue-300">已選 {selectedPages.size} 個頁面</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-red-200 dark:border-red-600 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 text-red-700 dark:text-red-300 hover:from-red-100 hover:to-red-200 dark:hover:from-red-800/40 dark:hover:to-red-700/40 hover:border-red-300 dark:hover:border-red-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                  <Button
+                    variant="danger"
+                    size="sm"
                     onClick={bulkDeletePages}
                   >
-                    <TrashIcon className="h-3 w-3 group-hover:scale-110 transition-transform duration-200" />
+                    <TrashIcon className="h-3 w-3" />
                     批次刪除
-                  </button>
-                  <button
-                    className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-yellow-200 dark:border-yellow-600 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30 text-yellow-700 dark:text-yellow-300 hover:from-yellow-100 hover:to-yellow-200 dark:hover:from-yellow-800/40 dark:hover:to-yellow-700/40 hover:border-yellow-300 dark:hover:border-yellow-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                  </Button>
+                  <Button
+                    variant="warning"
+                    size="sm"
                     onClick={() => setBulkAction('status')}
                   >
-                    <PencilIcon className="h-3 w-3 group-hover:scale-110 transition-transform duration-200" />
+                    <PencilIcon className="h-3 w-3" />
                     批次更新狀態
-                  </button>
-                  <button
-                    className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={clearPageSelection}
                   >
-                    <XMarkIcon className="h-3 w-3 group-hover:scale-110 transition-transform duration-200" />
+                    <XMarkIcon className="h-3 w-3" />
                     取消選擇
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -998,8 +1018,9 @@ const DesignModuleDetail: React.FC = () => {
                 <PlusIcon className="h-4 w-4 text-gray-400" />
               </div>
             </div>
-            <button
-              className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-500 dark:border-blue-600 bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 text-white hover:from-blue-600 hover:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 hover:border-blue-600 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            <Button
+              variant="primary"
+              size="md"
               disabled={!newPageSlug.trim()}
               onClick={async () => {
                 const list = newPageSlug.split(',').map(s => s.trim()).filter(Boolean)
@@ -1064,7 +1085,7 @@ const DesignModuleDetail: React.FC = () => {
                   新增頁面
                 </>
               )}
-            </button>
+            </Button>
             {filteredTree.length > 0 && (
               <button
                 className="group relative px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
@@ -1362,27 +1383,29 @@ const DesignModuleDetail: React.FC = () => {
             </div>
             
             <div className="flex justify-end gap-3">
-              <button 
-                className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow-md"
+              <Button
+                variant="secondary"
+                size="md"
                 onClick={() => setShowSlicePackageModal(false)}
               >
                 取消
-              </button>
-              <button 
-                className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg" 
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
                 onClick={async () => {
                   setShowSlicePackageModal(false)
                   await handleGenerate()
-                }} 
+                }}
                 disabled={generating}
               >
                 {generating ? (
                   <ArrowPathIcon className="h-5 w-5 animate-spin" />
                 ) : (
-                  <DocumentArrowDownIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+                  <DocumentArrowDownIcon className="h-5 w-5" />
                 )}
                 {generating ? '生成中...' : '開始生成'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
