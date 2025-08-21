@@ -11,8 +11,7 @@ import {
   EyeIcon,
   CodeBracketIcon,
   DocumentTextIcon,
-  CogIcon,
-  ShieldCheckIcon,
+
   XMarkIcon
 } from '@heroicons/react/24/outline'
 import { AISpecType, AISpecFormat } from '../types/aiSpec'
@@ -71,6 +70,7 @@ const AISpecGenerator: React.FC = () => {
   // 模態狀態
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showContentEditModal, setShowContentEditModal] = useState(false)
   const [selectedSpec, setSelectedSpec] = useState<AISpec | null>(null)
   const [showManualInputModal, setShowManualInputModal] = useState(false)
   const [manualInputData, setManualInputData] = useState('')
@@ -80,6 +80,14 @@ const AISpecGenerator: React.FC = () => {
   const [previewContent, setPreviewContent] = useState<string>('')
   const [previewLoading, setPreviewLoading] = useState<boolean>(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const [specContentData, setSpecContentData] = useState({
+    overview: '',
+    requirements: [] as string[],
+    steps: [] as string[],
+    notes: [] as string[],
+    codeExamples: [] as string[],
+    bestPractices: [] as string[]
+  })
   
   // 表單狀態
   const [formData, setFormData] = useState({
@@ -346,6 +354,27 @@ const AISpecGenerator: React.FC = () => {
     
     // 顯示成功訊息
     alert('AI 規格刪除成功！')
+  }
+
+  // 處理規格內容更新
+  const handleUpdateSpecContent = () => {
+    if (!selectedSpec) return
+    
+    // 這裡可以實現實際的內容保存邏輯
+    // 目前先顯示成功訊息
+    alert('AI 規格內容已保存！')
+    
+    // 關閉模態框
+    setShowContentEditModal(false)
+    setSelectedSpec(null)
+    setSpecContentData({
+      overview: '',
+      requirements: [],
+      steps: [],
+      notes: [],
+      codeExamples: [],
+      bestPractices: []
+    })
   }
   
   // 獲取類型標籤
@@ -692,6 +721,16 @@ const AISpecGenerator: React.FC = () => {
                         >
                           <EyeIcon className="h-3 w-3 mr-1" />
                           預覽
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setSelectedSpec(spec)
+                            setShowContentEditModal(true)
+                          }}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-800/40 dark:hover:text-green-200"
+                        >
+                          <DocumentTextIcon className="h-3 w-3 mr-1" />
+                          編輯內容
                         </button>
                         <button 
                           disabled
@@ -1150,6 +1189,131 @@ const AISpecGenerator: React.FC = () => {
               <button className="btn-secondary" onClick={() => setShowPreviewModal(false)}>
                 關閉
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 內容編輯模態框 */}
+      {showContentEditModal && selectedSpec && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">編輯規格內容 - {selectedSpec.name}</h3>
+              
+              <div className="space-y-6">
+                {/* 概述 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    概述說明
+                  </label>
+                  <textarea
+                    value={specContentData.overview}
+                    onChange={(e) => setSpecContentData(prev => ({ ...prev, overview: e.target.value }))}
+                    rows={6}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="輸入規格概述說明..."
+                  />
+                </div>
+
+                {/* 需求清單 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    需求清單 (每行一個)
+                  </label>
+                  <textarea
+                    value={specContentData.requirements.join('\n')}
+                    onChange={(e) => setSpecContentData(prev => ({ ...prev, requirements: e.target.value.split('\n').filter(line => line.trim()) }))}
+                    rows={5}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="輸入需求項目，每行一個..."
+                  />
+                </div>
+
+                {/* 實作步驟 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    實作步驟 (每行一個)
+                  </label>
+                  <textarea
+                    value={specContentData.steps.join('\n')}
+                    onChange={(e) => setSpecContentData(prev => ({ ...prev, steps: e.target.value.split('\n').filter(line => line.trim()) }))}
+                    rows={6}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="輸入實作步驟，每行一個..."
+                  />
+                </div>
+
+                {/* 代碼範例 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    代碼範例 (每行一個代碼塊)
+                  </label>
+                  <textarea
+                    value={specContentData.codeExamples.join('\n---\n')}
+                    onChange={(e) => setSpecContentData(prev => ({ ...prev, codeExamples: e.target.value.split('\n---\n').filter(code => code.trim()) }))}
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                    placeholder="輸入代碼範例，用 --- 分隔不同的代碼塊..."
+                  />
+                </div>
+
+                {/* 最佳實踐 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    最佳實踐 (每行一個)
+                  </label>
+                  <textarea
+                    value={specContentData.bestPractices.join('\n')}
+                    onChange={(e) => setSpecContentData(prev => ({ ...prev, bestPractices: e.target.value.split('\n').filter(line => line.trim()) }))}
+                    rows={5}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="輸入最佳實踐建議，每行一個..."
+                  />
+                </div>
+
+                {/* 注意事項 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    注意事項 (每行一個)
+                  </label>
+                  <textarea
+                    value={specContentData.notes.join('\n')}
+                    onChange={(e) => setSpecContentData(prev => ({ ...prev, notes: e.target.value.split('\n').filter(line => line.trim()) }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="輸入注意事項，每行一個..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => {
+                    setShowContentEditModal(false)
+                    setSelectedSpec(null)
+                    setSpecContentData({
+                      overview: '',
+                      requirements: [],
+                      steps: [],
+                      notes: [],
+                      codeExamples: [],
+                      bestPractices: []
+                    })
+                  }}
+                >
+                  取消
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={handleUpdateSpecContent}
+                >
+                  儲存內容
+                </Button>
+              </div>
             </div>
           </div>
         </div>

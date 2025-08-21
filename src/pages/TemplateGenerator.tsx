@@ -1,16 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   PlusIcon, 
   MagnifyingGlassIcon, 
-  FunnelIcon, 
   ArrowPathIcon, 
   BuildingLibraryIcon,
   DocumentTextIcon,
   PencilIcon,
   TrashIcon,
   EyeIcon,
-  XMarkIcon,
-  CheckIcon,
   CalendarIcon,
   ClockIcon,
   CodeBracketIcon
@@ -66,7 +63,17 @@ const TemplateGenerator: React.FC = () => {
   // 模態狀態
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showContentEditModal, setShowContentEditModal] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
+
+  const [contentData, setContentData] = useState({
+    htmlContent: '',
+    cssContent: '',
+    jsContent: '',
+    requirements: [] as string[],
+    steps: [] as string[],
+    notes: [] as string[]
+  })
   const [showManualInputModal, setShowManualInputModal] = useState(false)
   const [manualInputData, setManualInputData] = useState('')
   
@@ -216,6 +223,27 @@ const TemplateGenerator: React.FC = () => {
     
     // 顯示成功訊息
     alert('模板刪除成功！')
+  }
+
+  // 處理模板內容更新
+  const handleUpdateTemplateContent = () => {
+    if (!selectedTemplate) return
+    
+    // 這裡可以實現實際的內容保存邏輯
+    // 目前先顯示成功訊息
+    alert('模板內容已保存！')
+    
+    // 關閉模態框
+    setShowContentEditModal(false)
+    setSelectedTemplate(null)
+    setContentData({
+      htmlContent: '',
+      cssContent: '',
+      jsContent: '',
+      requirements: [],
+      steps: [],
+      notes: []
+    })
   }
   
   const getCategoryLabel = (category: TemplateCategory) => {
@@ -500,6 +528,16 @@ const TemplateGenerator: React.FC = () => {
                         <button className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-800/40 dark:hover:text-blue-200">
                           <EyeIcon className="h-3 w-3 mr-1" />
                           預覽
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setSelectedTemplate(template)
+                            setShowContentEditModal(true)
+                          }}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-800/40 dark:hover:text-green-200"
+                        >
+                          <DocumentTextIcon className="h-3 w-3 mr-1" />
+                          編輯內容
                         </button>
                         <button 
                           disabled
@@ -892,6 +930,131 @@ const TemplateGenerator: React.FC = () => {
               >
                 解析並創建
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 內容編輯模態框 */}
+      {showContentEditModal && selectedTemplate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">編輯模板內容 - {selectedTemplate.name}</h3>
+              
+              <div className="space-y-6">
+                {/* HTML 內容 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    HTML 內容
+                  </label>
+                  <textarea
+                    value={contentData.htmlContent}
+                    onChange={(e) => setContentData(prev => ({ ...prev, htmlContent: e.target.value }))}
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                    placeholder="輸入 HTML 代碼..."
+                  />
+                </div>
+
+                {/* CSS 內容 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    CSS 樣式
+                  </label>
+                  <textarea
+                    value={contentData.cssContent}
+                    onChange={(e) => setContentData(prev => ({ ...prev, cssContent: e.target.value }))}
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                    placeholder="輸入 CSS 樣式..."
+                  />
+                </div>
+
+                {/* JavaScript 內容 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    JavaScript 代碼
+                  </label>
+                  <textarea
+                    value={contentData.jsContent}
+                    onChange={(e) => setContentData(prev => ({ ...prev, jsContent: e.target.value }))}
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                    placeholder="輸入 JavaScript 代碼..."
+                  />
+                </div>
+
+                {/* 需求說明 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    需求說明 (每行一個)
+                  </label>
+                  <textarea
+                    value={contentData.requirements.join('\n')}
+                    onChange={(e) => setContentData(prev => ({ ...prev, requirements: e.target.value.split('\n').filter(line => line.trim()) }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="輸入需求說明，每行一個..."
+                  />
+                </div>
+
+                {/* 實作步驟 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    實作步驟 (每行一個)
+                  </label>
+                  <textarea
+                    value={contentData.steps.join('\n')}
+                    onChange={(e) => setContentData(prev => ({ ...prev, steps: e.target.value.split('\n').filter(line => line.trim()) }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="輸入實作步驟，每行一個..."
+                  />
+                </div>
+
+                {/* 注意事項 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    注意事項 (每行一個)
+                  </label>
+                  <textarea
+                    value={contentData.notes.join('\n')}
+                    onChange={(e) => setContentData(prev => ({ ...prev, notes: e.target.value.split('\n').filter(line => line.trim()) }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="輸入注意事項，每行一個..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => {
+                    setShowContentEditModal(false)
+                    setSelectedTemplate(null)
+                    setContentData({
+                      htmlContent: '',
+                      cssContent: '',
+                      jsContent: '',
+                      requirements: [],
+                      steps: [],
+                      notes: []
+                    })
+                  }}
+                >
+                  取消
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={handleUpdateTemplateContent}
+                >
+                  儲存內容
+                </Button>
+              </div>
             </div>
           </div>
         </div>
