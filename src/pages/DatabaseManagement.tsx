@@ -12,6 +12,10 @@ import {
 import { Button } from '../components/ui/Button'
 import DataMigrationModal from '../components/DataMigrationModal'
 import DataValidationPanel from '../components/DataValidationPanel'
+import DataRepairPanel from '../components/DataRepairPanel'
+import BatchOperationsPanel from '../components/BatchOperationsPanel'
+import { useDesignModulesStore } from '../stores/designModules'
+import { getTemplatesFromDB, getAISpecsFromDB } from '../services/database'
 import { 
   getDatabaseStats, 
   backupDatabase, 
@@ -22,6 +26,8 @@ import {
 import { checkMigrationNeeded } from '../services/dataMigration'
 
 export default function DatabaseManagement() {
+  // 從 store 取得模組資料（Tauri/瀏覽器自動切換）
+  const { modules, init } = useDesignModulesStore()
   const [showMigrationModal, setShowMigrationModal] = useState(false)
   const [dbStats, setDbStats] = useState<DatabaseStats | null>(null)
   const [connectionStatus, setConnectionStatus] = useState<{
@@ -35,8 +41,22 @@ export default function DatabaseManagement() {
 
   // 檢查數據庫狀態
   useEffect(() => {
+    // 初始化設計模組資料
+    init()
     checkDatabaseStatus()
     checkMigrationStatus()
+  }, [])
+
+  // 承載模板與 AI 規格（從 DB）
+  const [templates, setTemplates] = useState<any[]>([])
+  const [specs, setSpecs] = useState<any[]>([])
+  useEffect(() => {
+    ;(async () => {
+      const t = await getTemplatesFromDB()
+      const s = await getAISpecsFromDB()
+      if (t.success && t.data) setTemplates(t.data)
+      if (s.success && s.data) setSpecs(s.data)
+    })()
   }, [])
 
   const checkDatabaseStatus = async () => {
@@ -274,7 +294,7 @@ export default function DatabaseManagement() {
             )}
           </div>
 
-          {/* 右側：統計信息和驗證 */}
+          {/* 右側：統計、驗證、修復、批量操作 */}
           <div className="lg:col-span-2 space-y-6">
             {/* 數據庫統計 */}
             {dbStats && (
@@ -328,6 +348,30 @@ export default function DatabaseManagement() {
             <DataValidationPanel 
               onValidationComplete={(result) => {
                 console.log('驗證完成:', result)
+              }}
+            />
+
+            {/* 數據修復面板 */}
+            <DataRepairPanel
+              data={{
+                modules: modules || [],
+                templates: templates as any[],
+                specs: specs as any[]
+              }}
+              onRepairComplete={(result) => {
+                console.log('修復完成:', result)
+              }}
+            />
+
+            {/* 批量操作面板 */}
+            <BatchOperationsPanel
+              data={{
+                modules: modules || [],
+                templates: templates as any[],
+                specs: specs as any[]
+              }}
+              onOperationComplete={(result) => {
+                console.log('批量操作完成:', result)
               }}
             />
           </div>

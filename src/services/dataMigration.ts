@@ -8,7 +8,7 @@ import {
   DatabaseAISpec,
   DatabaseResult
 } from '../types/database'
-import { DesignModule } from '../stores/designModules'
+import { DesignModule } from '../utils/tauriCommands'
 import { Template } from '../types/templates'
 import { AISpec } from '../types/aiSpec'
 
