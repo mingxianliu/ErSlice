@@ -272,7 +272,49 @@ const PageAssetManager: React.FC<PageAssetManagerProps> = ({ moduleName, pageSlu
       </div>
 
       {/* 上傳區域 */}
-      <div className="card p-6">
+      <div
+        className="card p-6"
+        onDragOver={(e) => {
+          e.preventDefault()
+        }}
+        onDrop={async (e) => {
+          e.preventDefault()
+          if (!store.tauriAvailable || uploading) return
+          const paths: string[] = []
+          // 從 dataTransfer 取可用檔案路徑（Tauri 環境）
+          // @ts-expect-error webkitRelativePath not typed
+          for (const item of e.dataTransfer?.items || []) {
+            const file = item.getAsFile?.()
+            if (file?.path) paths.push(file.path)
+          }
+          // Fallback: files 列表
+          for (const f of Array.from(e.dataTransfer?.files || [])) {
+            // @ts-expect-error path in Tauri env
+            if (f.path) paths.push(f.path)
+          }
+          if (paths.length === 0) return
+          setUploading(true)
+          try {
+            const baseType = (assetType.replace('responsive-', '') as 'screenshots'|'html'|'css')
+            const uploadPath = assetType.startsWith('responsive-')
+              ? `${moduleName}/pages/${pageSlug}/responsive`
+              : `${moduleName}/pages/${pageSlug}`
+            let success = 0
+            for (const p of paths) {
+              try {
+                await uploadDesignAsset(uploadPath, baseType, p)
+                success++
+              } catch {}
+            }
+            if (success > 0) {
+              showSuccess(`已上傳 ${success} 個文件（拖放）`)
+              await refreshAssets()
+            }
+          } finally {
+            setUploading(false)
+          }
+        }}
+      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-gray-900 dark:text-white">
             上傳 {activeTab === 'responsive' ? '響應式' : '桌面'} 版本資產
@@ -318,6 +360,7 @@ const PageAssetManager: React.FC<PageAssetManagerProps> = ({ moduleName, pageSlu
               <CloudArrowUpIcon className="h-5 w-5" /> 
               {uploading ? '上傳中...' : '選擇文件並上傳'}
             </button>
+            <span className="text-xs text-gray-500">或將檔案直接拖放到此區塊</span>
             <button 
               className="btn-secondary flex items-center gap-2" 
               onClick={refreshAssets} 

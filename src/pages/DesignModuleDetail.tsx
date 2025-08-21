@@ -382,13 +382,6 @@ const DesignModuleDetail: React.FC = () => {
                       >
                         <FolderIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
                       </button>
-                      <button 
-                        className="group relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-green-100 dark:hover:bg-green-900/30 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 border border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-500 transition-all duration-200"
-                        onClick={() => setUploadModalPage(p.slug)}
-                        title="上傳資產"
-                      >
-                        <CloudArrowUpIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
-                      </button>
                       
                       {/* 更多選項下拉選單 */}
                       <div className="relative">
