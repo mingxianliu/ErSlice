@@ -301,9 +301,51 @@ const AISpecGenerator: React.FC = () => {
     })
   }
   
+  // 處理規格更新
+  const handleUpdateSpec = () => {
+    if (!selectedSpec) return
+    
+    // 驗證必填欄位
+    if (!formData.name.trim()) {
+      alert('請輸入規格名稱')
+      return
+    }
+    
+    // 更新規格資料
+    const updatedSpec = {
+      ...selectedSpec,
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+      type: formData.type,
+      category: formData.category,
+      complexity: formData.complexity,
+      tags: formData.tags,
+      updatedAt: new Date().toISOString()
+    }
+    
+    // 更新本地狀態
+    setSpecList(prev => prev.map(s => 
+      s.id === selectedSpec.id ? updatedSpec : s
+    ))
+    
+    // 關閉模態框並重置狀態
+    setShowEditModal(false)
+    setSelectedSpec(null)
+    setFormData({ name: '', description: '', type: AISpecType.BASIC, category: 'frontend', complexity: 'simple', tags: [] })
+    
+    // 顯示成功訊息
+    alert('AI 規格更新成功！')
+  }
+
+  // 處理規格刪除
   const handleDeleteSpec = (spec: AISpec) => {
-    if (!confirm(`刪除AI規格 ${spec.name}？`)) return
+    if (!confirm(`確定要刪除 AI 規格「${spec.name}」嗎？此操作不可回復。`)) return
+    
+    // 從本地狀態中移除
     setSpecList(prev => prev.filter(s => s.id !== spec.id))
+    
+    // 顯示成功訊息
+    alert('AI 規格刪除成功！')
   }
   
   // 獲取類型標籤
@@ -948,10 +990,8 @@ const AISpecGenerator: React.FC = () => {
                   取消
                 </button>
                 <button
-                  onClick={() => {
-                    // TODO: 實作更新邏輯
-                    alert('更新功能尚未實作')
-                  }}
+                  onClick={handleUpdateSpec}
+                  disabled={!formData.name.trim()}
                   className="flex-1 btn-primary"
                 >
                   更新

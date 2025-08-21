@@ -10,7 +10,10 @@ import {
   TrashIcon,
   EyeIcon,
   XMarkIcon,
-  CheckIcon
+  CheckIcon,
+  CalendarIcon,
+  ClockIcon,
+  CodeBracketIcon
 } from '@heroicons/react/24/outline'
 import { Button } from '../components/ui/Button'
 import { templates } from '../data/templates'
@@ -169,9 +172,50 @@ const TemplateGenerator: React.FC = () => {
     setFormData({ name: '', description: '', category: TemplateCategory.LAYOUT, complexity: TemplateComplexity.SIMPLE, tags: [], features: [] })
   }
   
+  // 處理模板更新
+  const handleUpdateTemplate = () => {
+    if (!selectedTemplate) return
+    
+    // 驗證必填欄位
+    if (!formData.name.trim()) {
+      alert('請輸入模板名稱')
+      return
+    }
+    
+    // 更新模板資料
+    const updatedTemplate = {
+      ...selectedTemplate,
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+      category: formData.category,
+      complexity: formData.complexity,
+      tags: formData.tags,
+      updatedAt: new Date().toISOString()
+    }
+    
+    // 更新本地狀態
+    setTemplateList(prev => prev.map(t => 
+      t.id === selectedTemplate.id ? updatedTemplate : t
+    ))
+    
+    // 關閉模態框並重置狀態
+    setShowEditModal(false)
+    setSelectedTemplate(null)
+    setFormData({ name: '', description: '', category: TemplateCategory.LAYOUT, complexity: TemplateComplexity.SIMPLE, tags: [], features: [] })
+    
+    // 顯示成功訊息
+    alert('模板更新成功！')
+  }
+
+  // 處理模板刪除
   const handleDeleteTemplate = (template: Template) => {
-    if (!confirm(`刪除模板 ${template.name}？`)) return
+    if (!confirm(`確定要刪除模板「${template.name}」嗎？此操作不可回復。`)) return
+    
+    // 從本地狀態中移除
     setTemplateList(prev => prev.filter(t => t.id !== template.id))
+    
+    // 顯示成功訊息
+    alert('模板刪除成功！')
   }
   
   const getCategoryLabel = (category: TemplateCategory) => {
@@ -278,6 +322,7 @@ const TemplateGenerator: React.FC = () => {
               value={filters.category}
               onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value as TemplateCategory | 'all' }))}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              aria-label="類別篩選"
             >
               <option value="all">所有類別</option>
               {Object.values(TemplateCategory).map(category => (
@@ -289,6 +334,7 @@ const TemplateGenerator: React.FC = () => {
               value={filters.complexity}
               onChange={(e) => setFilters(prev => ({ ...prev, complexity: e.target.value as TemplateComplexity | 'all' }))}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              aria-label="複雜度篩選"
             >
               <option value="all">所有複雜度</option>
               {Object.values(TemplateComplexity).map(complexity => (
@@ -303,6 +349,7 @@ const TemplateGenerator: React.FC = () => {
                 setFilters(prev => ({ ...prev, isCustom: value }))
               }}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              aria-label="模板類型篩選"
             >
               <option value="all">所有模板</option>
               <option value="preset">預設模板</option>
@@ -574,6 +621,7 @@ const TemplateGenerator: React.FC = () => {
                       value={formData.category}
                       onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as TemplateCategory }))}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      aria-label="模板類別"
                     >
                       {Object.values(TemplateCategory).map(category => (
                         <option key={category} value={category}>{getCategoryLabel(category)}</option>
@@ -601,6 +649,7 @@ const TemplateGenerator: React.FC = () => {
                     value={formData.complexity}
                     onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value as TemplateComplexity }))}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    aria-label="模板複雜度"
                   >
                     {Object.values(TemplateComplexity).map(complexity => (
                       <option key={complexity} value={complexity}>{getComplexityLabel(complexity)}</option>
@@ -682,6 +731,7 @@ const TemplateGenerator: React.FC = () => {
                       value={formData.category}
                       onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as TemplateCategory }))}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      aria-label="模板類別"
                     >
                       {Object.values(TemplateCategory).map(category => (
                         <option key={category} value={category}>{getCategoryLabel(category)}</option>
@@ -708,6 +758,7 @@ const TemplateGenerator: React.FC = () => {
                     value={formData.complexity}
                     onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value as TemplateComplexity }))}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    aria-label="模板複雜度"
                   >
                     {Object.values(TemplateComplexity).map(complexity => (
                       <option key={complexity} value={complexity}>{getComplexityLabel(complexity)}</option>
@@ -727,10 +778,8 @@ const TemplateGenerator: React.FC = () => {
                   取消
                 </button>
                 <button
-                  onClick={() => {
-                    // TODO: 實作更新邏輯
-                    alert('更新功能尚未實作')
-                  }}
+                  onClick={handleUpdateTemplate}
+                  disabled={!formData.name.trim()}
                   className="flex-1 btn-primary"
                 >
                   更新
