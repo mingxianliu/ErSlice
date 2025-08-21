@@ -3,6 +3,8 @@ import { useToast } from '@/components/ui/Toast'
 import { useProjectStore } from '@/stores/project'
 import { useDesignModulesStore } from '@/stores/designModules'
 import FigmaImporter from '@/components/FigmaImporter'
+import PageLayout from '@/components/PageLayout'
+import SearchAndFilters from '@/components/SearchAndFilters'
 import { 
   RocketLaunchIcon, 
   FolderIcon, 
@@ -685,10 +687,10 @@ const ProjectHub: React.FC = () => {
       
       // 顯示成功消息
       const summary = [
-        `📁 ${createdModules.length} 個設計模組`,
-        `🎨 ${assets.length} 個設計資產`,
-        `📱 ${result.modules?.length || 0} 個檢測模組`,
-        `🔧 自動生成子項目結構`
+        `${createdModules.length} 個設計模組`,
+        `${assets.length} 個設計資產`,
+        `${result.modules?.length || 0} 個檢測模組`,
+        `自動生成子項目結構`
       ]
       
       showSuccess(
@@ -759,7 +761,7 @@ const ProjectHub: React.FC = () => {
       
       showSuccess(
         '專案切版包生成完成！', 
-        `✅ ${summary.assets} 個設計資產\n✅ ${summary.templates} 個模板\n✅ ${summary.aiSpecs} 個AI規格\n📋 功能: ${features.join('、')}\n📁 輸出路徑: ${summary.outputPath}`
+        `${summary.assets} 個設計資產\n${summary.templates} 個模板\n${summary.aiSpecs} 個AI規格\n功能: ${features.join('、')}\n輸出路徑: ${summary.outputPath}`
       )
       
       // 可以在這裡打開輸出文件夾
@@ -811,86 +813,108 @@ const ProjectHub: React.FC = () => {
     }
   }
 
-  return (
-    <div className="space-y-6 min-h-full bg-gray-50 dark:bg-gray-900">
-      {/* 頁面標題 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <RocketLaunchIcon className="h-8 w-8 text-blue-600" />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              專案中心
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              專案管理、資源配置和切版包生成
-            </p>
-          </div>
-        </div>
+  // 準備統一佈局的 props
+  const actionsButtons = (
+    <button
+      onClick={() => setShowCreateModal(true)}
+      className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
+    >
+      <PlusIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+      建立專案
+    </button>
+  )
+
+  const searchAndFiltersProps = (
+    <SearchAndFilters
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      searchPlaceholder="搜尋專案..."
+      filters={[
+        // 狀態篩選
+        <select
+          key="status"
+          value={filters.status}
+          onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as FilterOptions['status'] }))}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+        >
+          <option value="all">所有狀態</option>
+          <option value="active">活躍</option>
+          <option value="draft">草稿</option>
+          <option value="archived">已封存</option>
+        </select>,
+        
+        // 日期篩選
+        <select
+          key="dateRange"
+          value={filters.dateRange}
+          onChange={(e) => setFilters(prev => ({ ...prev, dateRange: e.target.value as FilterOptions['dateRange'] }))}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+        >
+          <option value="all">所有時間</option>
+          <option value="week">近一週</option>
+          <option value="month">近一月</option>
+          <option value="quarter">近三月</option>
+        </select>
+      ]}
+    />
+  )
+
+  // 準備分頁組件
+  const paginationComponent = !loading && filteredProjects.length > itemsPerPage ? (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+        顯示第 {startIndex + 1} - {Math.min(endIndex, filteredProjects.length)} 筆，共 {filteredProjects.length} 筆專案
       </div>
       
-      {/* 列表工具列 */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* 搜尋框 */}
-          <div className="relative w-full lg:w-80">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="搜尋專案..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            />
-          </div>
-          
-          {/* 篩選 */}
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as FilterOptions['status'] }))}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="all">所有狀態</option>
-              <option value="active">活躍</option>
-              <option value="draft">草稿</option>
-              <option value="archived">已封存</option>
-            </select>
-            
-            <select
-              value={filters.dateRange}
-              onChange={(e) => setFilters(prev => ({ ...prev, dateRange: e.target.value as FilterOptions['dateRange'] }))}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="all">所有時間</option>
-              <option value="week">近一週</option>
-              <option value="month">近一月</option>
-              <option value="quarter">近三月</option>
-            </select>
-          </div>
-          
-          {/* 操作按鈕組 */}
-          <div className="flex gap-2">
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+          disabled={currentPage === 1}
+          className="px-3 py-1 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          上一頁
+        </button>
+        
+        <div className="flex space-x-1">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
             <button
-              onClick={() => loadProjects()}
-              disabled={loading}
-              className="btn-secondary flex items-center whitespace-nowrap"
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                page === currentPage
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+              }`}
             >
-              <ArrowPathIcon className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              重新整理
+              {page}
             </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="btn-primary flex items-center whitespace-nowrap"
-            >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              建立專案
-            </button>
-          </div>
+          ))}
         </div>
+        
+        <button
+          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          下一頁
+        </button>
       </div>
+    </div>
+  ) : null
 
-      {/* 專案列表 */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+  return (
+    <>
+      <PageLayout
+        title="專案中心"
+        description="專案管理、資源配置和切版包生成"
+        icon={RocketLaunchIcon}
+        actions={actionsButtons}
+        onRefresh={loadProjects}
+        refreshLoading={loading}
+        searchAndFilters={searchAndFiltersProps}
+        pagination={paginationComponent}
+      >
+
         {/* 列表標題 */}
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -1044,52 +1068,7 @@ const ProjectHub: React.FC = () => {
             </div>
           )}
         </div>
-        
-        {/* 分頁控制 */}
-        {!loading && filteredProjects.length > itemsPerPage && (
-          <div className="px-6 py-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
-                顯示第 {startIndex + 1} - {Math.min(endIndex, filteredProjects.length)} 筆，共 {filteredProjects.length} 筆專案
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  上一頁
-                </button>
-                
-                <div className="flex space-x-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                        page === currentPage
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                </div>
-                
-                <button
-                  onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  下一頁
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      </PageLayout>
 
       {/* 建立專案模態 */}
       {showCreateModal && (
@@ -1591,7 +1570,7 @@ const ProjectHub: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

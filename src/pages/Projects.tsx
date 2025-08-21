@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useToast } from '@/components/ui/Toast'
 import { useProjectStore } from '@/stores/project'
 import { Link } from 'react-router-dom'
-import { ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, XMarkIcon, FolderIcon, ArchiveBoxIcon, PaintBrushIcon } from '@heroicons/react/24/outline'
 import { 
   listProjects, 
   createProject, 
@@ -67,7 +67,7 @@ const Projects: React.FC = () => {
             to="/library" 
             className="bg-white dark:bg-gray-800 px-6 py-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]"
           >
-            🏛️ 資源庫
+            資源庫
           </Link>
           <button 
             onClick={() => setOpenProjectSettings(true)}
@@ -86,7 +86,10 @@ const Projects: React.FC = () => {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={async () => {
-                  if (!tauri) { showError('Tauri 不可用', '請在 Tauri 環境中執行'); return }
+                  if (!tauri) { 
+                    showError('功能限制', '此功能需要在 Tauri 桌面應用中執行，瀏覽器版本不支援檔案操作')
+                    return 
+                  }
                   try {
                     const path = await generateProjectMermaidHtml()
                     const { open } = await import('@tauri-apps/plugin-shell')
@@ -97,10 +100,13 @@ const Projects: React.FC = () => {
                     showError('站點圖預覽失敗', m)
                   }
                 }}
-                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap"
-                title="生成專案站點圖並開啟 HTML 預覽"
+                disabled={!tauri}
+                className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
+                  tauri ? 'btn-secondary' : 'btn-secondary opacity-50 cursor-not-allowed'
+                }`}
+                title={tauri ? "生成專案站點圖並開啟 HTML 預覽" : "此功能需要 Tauri 桌面版本"}
               >
-                📊 HTML 預覽
+                HTML 預覽
               </button>
               <button
                 onClick={async () => {
@@ -113,14 +119,14 @@ const Projects: React.FC = () => {
                     showError('生成站點圖失敗', m)
                   }
                 }}
-                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap"
+                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap flex items-center gap-2"
                 title="生成專案級 Mermaid 站點圖（ai-docs/project-sitemap.mmd）"
               >
-                🗂️ 生成站點圖
+                生成站點圖
               </button>
               <button
                 onClick={() => setOpenAnalytics(true)}
-                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap"
+                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap flex items-center gap-2"
                 title="查看站點圖分析報告"
               >
                 📈 站點圖分析
@@ -138,7 +144,7 @@ const Projects: React.FC = () => {
                     showError('導出站點圖失敗', m)
                   }
                 }}
-                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap"
+                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap flex items-center gap-2"
                 title="將整個專案結構導出為 JSON 檔案"
               >
                 📤 導出站點圖
@@ -161,7 +167,7 @@ const Projects: React.FC = () => {
                     showError('導入站點圖失敗', m)
                   }
                 }}
-                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap"
+                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap flex items-center gap-2"
                 title="從 JSON 檔案導入專案結構"
               >
                 📥 導入站點圖
@@ -175,7 +181,7 @@ const Projects: React.FC = () => {
             <div className="flex flex-wrap gap-3">
               <button 
                 onClick={() => setOpenProjectSettings(true)} 
-                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap" 
+                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap flex items-center gap-2" 
                 title="專案設定"
               >
                 ⚙️ 專案設定
@@ -207,17 +213,19 @@ const Projects: React.FC = () => {
                     showError('批次生成站點圖失敗', m)
                   }
                 }}
-                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap"
+                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap flex items-center gap-2"
                 title="為所有模組批次生成站點圖和 CRUD 圖"
               >
-                🔄 批次生成站點圖
+                <ArrowPathIcon className="h-4 w-4" />
+                批次生成站點圖
               </button>
               <button
                 onClick={() => setOpenUnified(true)}
-                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap"
+                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap flex items-center gap-2"
                 title="導出整包（design-assets + AI 文件 + 模組骨架）"
               >
-                📦 導出整包
+                <ArchiveBoxIcon className="h-4 w-4" />
+                導出整包
               </button>
               <button
                 onClick={async () => {
@@ -230,13 +238,15 @@ const Projects: React.FC = () => {
                     showError('開啟 ai-docs 失敗', m)
                   }
                 }}
-                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap"
+                className="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap flex items-center gap-2"
                 title="開啟 ai-docs 資料夾"
               >
-                📁 開啟 ai-docs
+                <FolderIcon className="h-4 w-4" />
+                開啟 ai-docs
               </button>
-              <Link to="/design-assets" className="btn-primary px-4 py-2 text-sm font-medium whitespace-nowrap text-center">
-                🎨 設計資產管理
+              <Link to="/design-assets" className="btn-primary px-4 py-2 text-sm font-medium whitespace-nowrap text-center flex items-center gap-2">
+                <PaintBrushIcon className="h-4 w-4" />
+                設計資產管理
               </Link>
             </div>
           </div>

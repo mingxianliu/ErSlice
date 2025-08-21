@@ -161,9 +161,9 @@ const FigmaExportOptions: React.FC<FigmaExportOptionsProps> = ({
           <span className="font-medium">將導出 {moduleCount} 個活躍模組</span>
         </div>
         <p className="text-blue-700 dark:text-blue-300 text-xs mt-1 space-y-1">
-          <span className="block">🔄 <strong>轉換源</strong>：ErSlice 設計模組與資產</span>
-          <span className="block">🎨 <strong>輸出為</strong>：Figma 可直接匯入的設計檔案</span>
-          <span className="block">🛠️ <strong>用途</strong>：在 Figma 中繼續設計或協作</span>
+          <span className="block"><strong>轉換源</strong>：ErSlice 設計模組與資產</span>
+          <span className="block"><strong>輸出為</strong>：Figma 可直接匯入的設計檔案</span>
+          <span className="block"><strong>用途</strong>：在 Figma 中繼續設計或協作</span>
         </p>
       </div>
 
@@ -172,14 +172,14 @@ const FigmaExportOptions: React.FC<FigmaExportOptionsProps> = ({
         <button
           onClick={onCancel}
           disabled={loading}
-          className="flex-1 btn-secondary disabled:opacity-50"
+          className="flex-1 group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50"
         >
           取消
         </button>
         <button
           onClick={handleExport}
           disabled={loading || (!includeAssets && !includeTokens && !includeComponents)}
-          className="flex-1 btn-primary disabled:opacity-50 flex items-center justify-center gap-2"
+          className="flex-1 group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50"
         >
           {loading ? (
             <>
@@ -188,7 +188,7 @@ const FigmaExportOptions: React.FC<FigmaExportOptionsProps> = ({
             </>
           ) : (
             <>
-              <ArrowUpTrayIcon className="h-4 w-4" />
+              <ArrowUpTrayIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
               開始導出
             </>
           )}

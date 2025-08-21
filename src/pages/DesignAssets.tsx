@@ -29,6 +29,10 @@ const DesignAssets: React.FC = () => {
   const [openAnalytics, setOpenAnalytics] = useState(false)
   const [openFigmaExport, setOpenFigmaExport] = useState(false)
   const [figmaExporting, setFigmaExporting] = useState(false)
+  const [openQuickImport, setOpenQuickImport] = useState(false)
+  const [selectedModule, setSelectedModule] = useState<string>('')
+  const [importTypes, setImportTypes] = useState({ screenshots: true, html: true, css: true })
+  const [targetSize, setTargetSize] = useState<'desktop' | 'responsive'>('desktop')
   const projectStore = useProjectStore()
   const [overwrite, setOverwrite] = useState<OverwriteStrategy>(projectStore.project?.overwriteStrategyDefault ?? 'overwrite')
   const [unifiedZip, setUnifiedZip] = useState(projectStore.project?.zipDefault ?? true)
@@ -195,6 +199,91 @@ const DesignAssets: React.FC = () => {
     }
   }
 
+  // 快速匯入資產
+  const handleQuickImport = async () => {
+    if (!selectedModule || (!importTypes.screenshots && !importTypes.html && !importTypes.css)) {
+      showError('請選擇模組和資產類型')
+      return
+    }
+
+    const module = store.modules.find(m => m.id === selectedModule)
+    if (!module) {
+      showError('找不到選中的模組')
+      return
+    }
+
+    try {
+      // 開啟檔案選擇器
+      const { open } = await import('@tauri-apps/plugin-dialog')
+      
+      let filters = []
+      if (importTypes.screenshots) {
+        filters.push({ name: '圖片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] })
+      }
+      if (importTypes.html) {
+        filters.push({ name: 'HTML 文件', extensions: ['html', 'htm'] })
+      }
+      if (importTypes.css) {
+        filters.push({ name: 'CSS 文件', extensions: ['css', 'scss', 'sass', 'less'] })
+      }
+
+      const selected = await open({
+        multiple: true,
+        filters,
+        title: `選擇要匯入到 ${module.name} 的資產文件`
+      })
+
+      if (!selected || (Array.isArray(selected) && selected.length === 0)) return
+
+      const files = Array.isArray(selected) ? selected : [selected]
+      
+      // 確定上傳路徑
+      let uploadPath: string
+      if (targetSize === 'responsive') {
+        uploadPath = `${module.name}/responsive`
+      } else {
+        uploadPath = `${module.name}`
+      }
+
+      // 上傳文件
+      const { uploadDesignAsset } = await import('../utils/tauriCommands')
+      let successCount = 0
+      
+      for (const filePath of files) {
+        try {
+          // 根據文件副檔名判斷類型
+          const ext = filePath.split('.').pop()?.toLowerCase()
+          let assetType: 'screenshots' | 'html' | 'css' = 'screenshots'
+          
+          if (['html', 'htm'].includes(ext || '')) {
+            assetType = 'html'
+          } else if (['css', 'scss', 'sass', 'less'].includes(ext || '')) {
+            assetType = 'css'
+          } else if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext || '')) {
+            assetType = 'screenshots'
+          }
+
+          await uploadDesignAsset(uploadPath, assetType, filePath)
+          successCount++
+        } catch (e) {
+          console.error(`上傳文件 ${filePath} 失敗:`, e)
+        }
+      }
+
+      if (successCount > 0) {
+        showSuccess(`成功匯入 ${successCount} 個文件到 ${module.name}`)
+        await store.refresh()
+        setOpenQuickImport(false)
+        setSelectedModule('')
+      } else {
+        showError('匯入失敗', '沒有文件成功匯入')
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '匯入失敗'
+      showError('匯入資產失敗', message)
+    }
+  }
+
   // 導出 Figma 格式
   const handleFigmaExport = async (options: {
     includeAssets: boolean
@@ -240,15 +329,15 @@ const DesignAssets: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 800))
       
       const summary = []
-      summary.push(`🎨 格式: ${options.exportFormat.toUpperCase()}`)
-      if (options.includeAssets) summary.push(`📁 ${exportData.assets} 個設計資產`)
-      if (options.includeTokens) summary.push(`🎯 ${exportData.tokens} 個設計令牌`)
-      if (options.includeComponents) summary.push(`🧩 ${exportData.components} 個組件`)
-      summary.push(`📂 輸出: ${exportData.outputPath}`)
+      summary.push(`格式: ${options.exportFormat.toUpperCase()}`)
+      if (options.includeAssets) summary.push(`${exportData.assets} 個設計資產`)
+      if (options.includeTokens) summary.push(`${exportData.tokens} 個設計令牌`)
+      if (options.includeComponents) summary.push(`${exportData.components} 個組件`)
+      summary.push(`輸出: ${exportData.outputPath}`)
       
       showSuccess(
         'Figma格式導出完成！', 
-        summary.join('\n') + '\n\n💡 前往資源庫 > Figma導出 查看完整記錄'
+        summary.join('\n') + '\n\n前往資源庫 > Figma導出 查看完整記錄'
       )
       
       // 在 Tauri 環境中可以直接開啟文件夾
@@ -279,28 +368,37 @@ const DesignAssets: React.FC = () => {
   const actionsButtons = (
     <>
       <button 
-        className="btn-primary flex items-center gap-2" 
+        className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-200 dark:border-blue-400 bg-gradient-to-r from-blue-200 to-blue-300 dark:from-blue-400 dark:to-blue-500 text-white hover:from-blue-300 hover:to-blue-400 dark:hover:from-blue-500 dark:hover:to-blue-600 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" 
         onClick={() => setOpenCreate(true)} 
         disabled={store.viewArchived}
+        aria-label="新增模組"
       >
-        <PlusIcon className="h-5 w-5" />
+        <PlusIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
         新增模組
       </button>
       {!store.viewArchived && (
         <>
           <button
+            onClick={() => setOpenQuickImport(true)}
+            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-green-200 dark:border-green-400 bg-gradient-to-r from-green-200 to-green-300 dark:from-green-400 dark:to-green-500 text-white hover:from-green-300 hover:to-green-400 dark:hover:from-green-500 dark:hover:to-green-600 hover:border-green-300 dark:hover:border-green-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+            title="快速匯入截圖、HTML、CSS 等資產到指定模組"
+          >
+            <ArrowUpTrayIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+            快速匯入資產
+          </button>
+          <button
             onClick={() => setOpenBulkGen(true)}
-            className="btn-primary"
+            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-emerald-200 dark:border-emerald-400 bg-gradient-to-r from-emerald-200 to-emerald-300 dark:from-emerald-400 dark:to-emerald-500 text-emerald-900 dark:text-white hover:from-emerald-300 hover:to-emerald-400 dark:hover:from-emerald-500 dark:hover:border-emerald-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
             title="一鍵為所有現行模組生成切版說明包"
           >
             一鍵生成全部
           </button>
           <button
             onClick={() => setOpenFigmaExport(true)}
-            className="btn-secondary flex items-center gap-2"
+            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
             title="將ErSlice中的設計模組、切圖資產等轉換為Figma可匯入的標準格式，支援設計令牌、組件結構等"
           >
-            <ArrowUpTrayIcon className="h-5 w-5" />
+            <ArrowUpTrayIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
             導出至Figma
           </button>
         </>
@@ -310,7 +408,7 @@ const DesignAssets: React.FC = () => {
           store.setViewArchived(!store.viewArchived)
           await store.refresh()
         }}
-        className={`btn-secondary ${store.viewArchived ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}`}
+        className={`group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md ${store.viewArchived ? 'border-amber-300 dark:border-amber-500 bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 text-amber-700 dark:text-amber-300' : ''}`}
         title={store.viewArchived ? '切換至現行模組' : '切換至封存模組'}
       >
         {store.viewArchived ? '查看現行' : '查看封存'}
@@ -330,6 +428,7 @@ const DesignAssets: React.FC = () => {
           value={store.projectFilter}
           onChange={(e) => store.setProjectFilter(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+          aria-label="專案篩選"
         >
           <option value="all">所有專案</option>
           <option value="demo-project">示範專案</option>
@@ -346,6 +445,7 @@ const DesignAssets: React.FC = () => {
           value={store.status}
           onChange={(e) => store.setStatus(e.target.value as any)}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+          aria-label="狀態篩選"
         >
           <option value="all">全部狀態</option>
           <option value="active">活躍</option>
@@ -362,6 +462,7 @@ const DesignAssets: React.FC = () => {
             store.setSort(by, dir)
           }}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+          aria-label="排序"
         >
           <option value="name:asc">名稱 ↑</option>
           <option value="name:desc">名稱 ↓</option>
@@ -377,6 +478,7 @@ const DesignAssets: React.FC = () => {
           value={store.pageSize}
           onChange={(e) => store.setPageSize(Number(e.target.value))}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+          aria-label="每頁數量"
         >
           <option value={6}>每頁 6 筆</option>
           <option value={9}>每頁 9 筆</option>
@@ -386,8 +488,33 @@ const DesignAssets: React.FC = () => {
     />
   )
 
+  // 準備分頁組件
+  const paginationComponent = (
+    <div className="flex items-center justify-between">
+      <div className="text-sm text-gray-600 dark:text-gray-400">
+        共 {total} 筆，頁 {current}/{pageCount}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          className="btn-secondary px-3 py-1 text-sm"
+          disabled={current <= 1}
+          onClick={() => store.setPage(current - 1)}
+        >
+          上一頁
+        </button>
+        <button
+          className="btn-secondary px-3 py-1 text-sm"
+          disabled={current >= pageCount}
+          onClick={() => store.setPage(current + 1)}
+        >
+          下一頁
+        </button>
+      </div>
+    </div>
+  )
+
   return (
-    <div className="space-y-6 min-h-full bg-gray-50 dark:bg-gray-900">
+    <>
       <PageLayout
         title="設計資產管理"
         description="管理前端模組的設計稿、切圖和資源檔案"
@@ -396,6 +523,7 @@ const DesignAssets: React.FC = () => {
         onRefresh={store.refresh}
         refreshLoading={store.loading}
         searchAndFilters={searchAndFiltersProps}
+        pagination={paginationComponent}
       >
         {/* 舊的搜尋篩選區域移除，改用統一組件 */}
         {/* <div className="card p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -763,30 +891,7 @@ const DesignAssets: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* 分頁 */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          共 {total} 筆，頁 {current}/{pageCount}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            className="btn-secondary px-3 py-1 text-sm"
-            disabled={current <= 1}
-            onClick={() => store.setPage(current - 1)}
-          >
-            上一頁
-          </button>
-          <button
-            className="btn-secondary px-3 py-1 text-sm"
-            disabled={current >= pageCount}
-            onClick={() => store.setPage(current + 1)}
-          >
-            下一頁
-          </button>
-        </div>
-      </div>
-
+    </PageLayout>
 
       {/* 新增模組 Modal */}
       {openCreate && (
@@ -852,25 +957,41 @@ const DesignAssets: React.FC = () => {
                   }
                   setSubmitting(true)
                   try {
-                    if (store.tauriAvailable) {
-                      const created = await createDesignModule(trimmed, description.trim())
-                      // put newest on top
-                      store.addLocalModule(created)
-                      await refreshProjectSitemap()
-                      showSuccess('創建成功', `已建立模組：${created.name}`)
-                    } else {
-                      // local-only addition
-                      const fake = {
-                        id: Math.random().toString(36).slice(2),
-                        name: trimmed,
-                        description: description.trim() || '設計資產模組',
-                        asset_count: 0,
-                        last_updated: new Date().toISOString().slice(0, 16).replace('T', ' '),
-                        status: 'active',
+                                      if (store.tauriAvailable) {
+                    const created = await createDesignModule(trimmed, description.trim())
+                    // put newest on top
+                    store.addLocalModule(created)
+                    
+                    // 自動創建預設頁面
+                    try {
+                      const { createModulePage } = await import('../utils/tauriCommands')
+                      const defaultPages = ['首頁', '列表頁', '詳情頁', '編輯頁']
+                      for (const pageName of defaultPages) {
+                        try {
+                          await createModulePage(trimmed, pageName.toLowerCase().replace(/頁$/, ''))
+                        } catch (e) {
+                          console.warn(`創建預設頁面 ${pageName} 失敗:`, e)
+                        }
                       }
-                      store.addLocalModule(fake as any)
-                      showSuccess('已新增（本地）', `模組：${fake.name}`)
+                      showSuccess('創建成功', `已建立模組：${created.name}，包含 ${defaultPages.length} 個預設頁面`)
+                    } catch (e) {
+                      showSuccess('創建成功', `已建立模組：${created.name}（頁面創建失敗，請手動添加）`)
                     }
+                    
+                    await refreshProjectSitemap()
+                  } else {
+                    // local-only addition
+                    const fake = {
+                      id: Math.random().toString(36).slice(2),
+                      name: trimmed,
+                      description: description.trim() || '設計資產模組',
+                      asset_count: 0,
+                      last_updated: new Date().toISOString().slice(0, 16).replace('T', ' '),
+                      status: 'active',
+                    }
+                    store.addLocalModule(fake as any)
+                    showSuccess('已新增（本地）', `模組：${fake.name}`)
+                  }
                     setOpenCreate(false)
                     setName('')
                     setDescription('')
@@ -892,6 +1013,185 @@ const DesignAssets: React.FC = () => {
       {/* 專案設定 Modal（簡版，Default Project） */}
       {openProject && (
         <ProjectSettingsModal onClose={() => setOpenProject(false)} />
+      )}
+
+      {/* 快速匯入資產 Modal */}
+      {openQuickImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setOpenQuickImport(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">快速匯入資產</h3>
+              <button
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                onClick={() => setOpenQuickImport(false)}
+                aria-label="關閉"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* 模組選擇 */}
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-3">選擇目標模組</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {store.modules.filter(m => m.status === 'active').map(module => (
+                    <div
+                      key={module.id}
+                      onClick={() => setSelectedModule(module.id)}
+                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                        selectedModule === module.id
+                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="font-medium text-gray-900 dark:text-white">{module.name}</h5>
+                        <input
+                          type="radio"
+                          name="selectedModule"
+                          checked={selectedModule === module.id}
+                          onChange={() => setSelectedModule(module.id)}
+                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                        />
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{module.description}</p>
+                      <div className="text-xs text-gray-500 mt-2">資產數量: {module.asset_count || 0}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 資產類型選擇 */}
+              {selectedModule && (
+                <div>
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">選擇資產類型</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer transition-colors">
+                        <div className="text-3xl mb-2">📸</div>
+                        <h5 className="font-medium text-gray-900 dark:text-white">截圖</h5>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">PNG, JPG, SVG 等圖片格式</p>
+                        <div className="mt-3">
+                          <label className="inline-flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={importTypes.screenshots}
+                              onChange={(e) => setImportTypes(prev => ({ ...prev, screenshots: e.target.checked }))}
+                              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                            />
+                            包含截圖
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer transition-colors">
+                        <div className="text-3xl mb-2">📄</div>
+                        <h5 className="font-medium text-gray-900 dark:text-white">HTML</h5>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">HTML, HTM 等網頁文件</p>
+                        <div className="mt-3">
+                          <label className="inline-flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={importTypes.html}
+                              onChange={(e) => setImportTypes(prev => ({ ...prev, html: e.target.checked }))}
+                              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                            />
+                            包含 HTML
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer transition-colors">
+                        <div className="text-3xl mb-2">🎨</div>
+                        <h5 className="font-medium text-gray-900 dark:text-white">CSS</h5>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">CSS, SCSS, SASS 等樣式文件</p>
+                        <div className="mt-3">
+                          <label className="inline-flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={importTypes.css}
+                              onChange={(e) => setImportTypes(prev => ({ ...prev, css: e.target.checked }))}
+                              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                            />
+                            包含 CSS
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 尺寸選擇 */}
+              {selectedModule && (
+                <div>
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">選擇目標尺寸</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <div className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                        targetSize === 'desktop' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                      }`}>
+                        <div className="text-3xl mb-2">🖥️</div>
+                        <h5 className="font-medium text-gray-900 dark:text-white">桌面版</h5>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">1920×1080 等大螢幕尺寸</p>
+                        <input
+                          type="radio"
+                          name="targetSize"
+                          value="desktop"
+                          checked={targetSize === 'desktop'}
+                          onChange={(e) => setTargetSize(e.target.value as 'desktop' | 'responsive')}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-2"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <div className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                        targetSize === 'responsive' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                      }`}>
+                        <div className="text-3xl mb-2">📱</div>
+                        <h5 className="font-medium text-gray-900 dark:text-white">響應式</h5>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">手機、平板等小螢幕尺寸</p>
+                        <input
+                          type="radio"
+                          name="targetSize"
+                          value="responsive"
+                          checked={targetSize === 'responsive'}
+                          onChange={(e) => setTargetSize(e.target.value as 'desktop' | 'responsive')}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-2"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 操作按鈕 */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-400 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-500 dark:to-gray-600 text-gray-700 dark:text-gray-100 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-400 dark:hover:to-gray-500 hover:border-gray-400 dark:hover:border-gray-300 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                  onClick={() => setOpenQuickImport(false)}
+                >
+                  取消
+                </button>
+                <button
+                  className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-green-300 dark:border-green-400 bg-gradient-to-r from-green-300 to-green-400 dark:from-green-400 dark:to-green-500 text-white hover:from-green-400 hover:to-green-500 dark:hover:from-green-500 dark:hover:to-green-600 hover:border-green-400 dark:hover:border-green-500 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
+                  onClick={handleQuickImport}
+                  disabled={!selectedModule || (!importTypes.screenshots && !importTypes.html && !importTypes.css)}
+                >
+                  <ArrowUpTrayIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+                  開始匯入
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 一鍵生成全部 Modal */}
@@ -1015,9 +1315,9 @@ const DesignAssets: React.FC = () => {
               
               <div className="space-y-4 mb-6">
                 <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
-                  <p>🔄 <strong>導出來源</strong>：ErSlice 中儲存的設計模組、切圖資產、設計規格</p>
-                  <p>🎯 <strong>轉換目標</strong>：生成 Figma 可直接匯入的標準格式檔案</p>
-                  <p>💡 <strong>應用場景</strong>：將 ErSlice 的設計資產帶回 Figma 進行進一步設計協作</p>
+                  <p><strong>導出來源</strong>：ErSlice 中儲存的設計模組、切圖資產、設計規格</p>
+                  <p><strong>轉換目標</strong>：生成 Figma 可直接匯入的標準格式檔案</p>
+                  <p><strong>應用場景</strong>：將 ErSlice 的設計資產帶回 Figma 進行進一步設計協作</p>
                 </div>
                 
                 <FigmaExportOptions
@@ -1031,7 +1331,7 @@ const DesignAssets: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

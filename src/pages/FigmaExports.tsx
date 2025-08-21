@@ -66,6 +66,7 @@ const FigmaExports: React.FC = () => {
   // 新導出功能狀態
   const [showNewExportModal, setShowNewExportModal] = useState(false)
   const [exportingNew, setExportingNew] = useState(false)
+  const [selectedModules, setSelectedModules] = useState<string[]>([]) // 選中的模組 ID
   
   // 載入示範資料
   const loadExportRecords = async () => {
@@ -159,6 +160,13 @@ const FigmaExports: React.FC = () => {
     moduleStore.init() // 初始化設計模組數據
   }, [])
 
+  // 當模態關閉時重置選中的模組
+  useEffect(() => {
+    if (!showNewExportModal) {
+      setSelectedModules([])
+    }
+  }, [showNewExportModal])
+
   // 處理新的 Figma 導出
   const handleNewFigmaExport = async (options: {
     includeAssets: boolean
@@ -168,10 +176,14 @@ const FigmaExports: React.FC = () => {
   }) => {
     setExportingNew(true)
     try {
+      // 使用選中的模組，如果沒有選中任何模組則使用所有活躍模組
       const activeModules = moduleStore.modules.filter(m => m.status === 'active')
+      const modulesToExport = selectedModules.length > 0 
+        ? moduleStore.modules.filter(m => selectedModules.includes(m.id))
+        : activeModules
       
-      if (activeModules.length === 0) {
-        showError('沒有可導出的模組', '請先前往設計資產頁面創建模組')
+      if (modulesToExport.length === 0) {
+        showError('沒有可導出的模組', selectedModules.length > 0 ? '請選擇要導出的模組' : '請先前往設計資產頁面創建模組')
         return
       }
 
@@ -189,10 +201,10 @@ const FigmaExports: React.FC = () => {
           tokens: options.includeTokens,
           components: options.includeComponents
         },
-        moduleCount: activeModules.length,
-        assetCount: options.includeAssets ? activeModules.reduce((sum, m) => sum + (m.asset_count ?? 0), 0) : 0,
+        moduleCount: modulesToExport.length,
+        assetCount: options.includeAssets ? modulesToExport.reduce((sum, m) => sum + (m.asset_count ?? 0), 0) : 0,
         tokenCount: options.includeTokens ? 35 : 0,
-        componentCount: options.includeComponents ? activeModules.length * 3 : 0,
+        componentCount: options.includeComponents ? modulesToExport.length * 3 : 0,
         status: 'success',
         createdAt: new Date().toISOString(),
         fileSize: '3.2 MB',
@@ -204,7 +216,7 @@ const FigmaExports: React.FC = () => {
       
       showSuccess(
         'Figma格式導出完成！', 
-        `已成功導出 ${activeModules.length} 個模組\n格式：${options.exportFormat}\n檔案大小：${newRecord.fileSize}`
+        `已成功導出 ${modulesToExport.length} 個模組\n格式：${options.exportFormat}\n檔案大小：${newRecord.fileSize}`
       )
       
       setShowNewExportModal(false)
@@ -608,14 +620,66 @@ const FigmaExports: React.FC = () => {
               
               <div className="space-y-4 mb-6">
                 <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
-                  <p>📦 <strong>資料來源</strong>：目前活躍的設計模組和資產</p>
-                  <p>🎯 <strong>導出目標</strong>：生成 Figma 可直接匯入的格式檔案</p>
-                  <p>💡 <strong>使用方式</strong>：下載檔案後手動匯入到 Figma</p>
+                  <p><strong>資料來源</strong>：目前活躍的設計模組和資產</p>
+                  <p><strong>導出目標</strong>：生成 Figma 可直接匯入的格式檔案</p>
+                  <p><strong>使用方式</strong>：下載檔案後手動匯入到 Figma</p>
                 </div>
                 
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                  <div className="text-blue-800 dark:text-blue-200 text-sm">
-                    <strong>將導出 {moduleStore.modules.filter(m => m.status === 'active').length} 個活躍模組</strong>
+                {/* 模組選擇區域 */}
+                <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">選擇要導出的模組</h4>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const activeIds = moduleStore.modules.filter(m => m.status === 'active').map(m => m.id)
+                          setSelectedModules(activeIds)
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                      >
+                        全選
+                      </button>
+                      <button
+                        onClick={() => setSelectedModules([])}
+                        className="text-xs text-gray-600 hover:text-gray-800 dark:text-gray-400"
+                      >
+                        清除
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="max-h-48 overflow-y-auto space-y-2">
+                    {moduleStore.modules.filter(m => m.status === 'active').map(module => (
+                      <label key={module.id} className="flex items-center p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedModules.includes(module.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedModules(prev => [...prev, module.id])
+                            } else {
+                              setSelectedModules(prev => prev.filter(id => id !== module.id))
+                            }
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <div className="ml-3 flex-1">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{module.name}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {module.asset_count ?? 0} 個資產
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      {selectedModules.length > 0 
+                        ? `已選擇 ${selectedModules.length} 個模組` 
+                        : `將導出所有 ${moduleStore.modules.filter(m => m.status === 'active').length} 個活躍模組`
+                      }
+                    </div>
                   </div>
                 </div>
                 
@@ -623,7 +687,7 @@ const FigmaExports: React.FC = () => {
                   onExport={handleNewFigmaExport}
                   onCancel={() => setShowNewExportModal(false)}
                   loading={exportingNew}
-                  moduleCount={moduleStore.modules.filter(m => m.status === 'active').length}
+                  moduleCount={selectedModules.length > 0 ? selectedModules.length : moduleStore.modules.filter(m => m.status === 'active').length}
                 />
               </div>
             </div>

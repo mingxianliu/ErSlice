@@ -6,7 +6,11 @@ import {
   FolderIcon,
   CheckCircleIcon,
   CpuChipIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  ComputerDesktopIcon,
+  DeviceTabletIcon,
+  DevicePhoneMobileIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline'
 import { 
   FigmaAnalysisController, 
@@ -259,10 +263,10 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
   // 獲取設備圖示
   const getDeviceIcon = (device: string) => {
     switch (device) {
-      case 'desktop': return '🖥️'
-      case 'tablet': return '📱'
-      case 'mobile': return '📱'
-      default: return '💻'
+      case 'desktop': return <ComputerDesktopIcon className="h-4 w-4" />
+      case 'tablet': return <DeviceTabletIcon className="h-4 w-4" />
+      case 'mobile': return <DevicePhoneMobileIcon className="h-4 w-4" />
+      default: return <ComputerDesktopIcon className="h-4 w-4" />
     }
   }
 
@@ -350,7 +354,7 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
         
         {enableAdvancedAnalysis && (
           <div className="mt-3 text-sm text-purple-600 dark:text-purple-400">
-            ✨ 將自動執行：視覺分析、設計令牌提取、響應式檢測、無障礙分析
+            將自動執行：視覺分析、設計令牌提取、響應式檢測、無障礙分析
           </div>
         )}
       </div>
@@ -405,7 +409,7 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
             <li>Tablet_Orders_Detail_Loading.png</li>
           </ul>
           <p className="text-xs mt-2">
-            💡 系統會自動解析檔案名稱並分類到對應的模組和頁面
+            系統會自動解析檔案名稱並分類到對應的模組和頁面
           </p>
         </div>
       </div>
@@ -509,7 +513,7 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
           {Object.entries(assetsByModule).map(([module, assets]) => (
             <div key={module} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
               <h4 className="font-medium text-gray-900 dark:text-white mb-3">
-                📁 {module} ({assets.length} 個檔案)
+                {module} ({assets.length} 個檔案)
               </h4>
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -550,7 +554,7 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
             <div className="mt-4 max-w-md mx-auto">
               <div className="flex justify-between text-xs text-gray-500 mb-2">
                 <span>Device/Module/Page/State 四維解析</span>
-                <span>⚡</span>
+                <BoltIcon className="h-4 w-4" />
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div className="bg-purple-600 h-2 rounded-full animate-pulse" style={{width: '75%'}}></div>
@@ -564,7 +568,7 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
       <div className="flex justify-end space-x-3">
         <button
           onClick={onCancel}
-          className="btn-secondary"
+          className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow-md"
           disabled={processing || analyzing}
         >
           取消
@@ -572,10 +576,10 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
         {previewAssets.length > 0 && (
           <button
             onClick={handleImportComplete}
-            className="btn-primary"
+            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-md"
             disabled={processing || analyzing || !projectName.trim()}
           >
-            <CheckCircleIcon className="h-5 w-5 mr-2" />
+            <CheckCircleIcon className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform duration-200" />
             匯入 {previewAssets.length} 個資產
             {analysisResult && (
               <span className="ml-2 text-xs bg-white bg-opacity-20 px-2 py-1 rounded">

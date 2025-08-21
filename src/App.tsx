@@ -1,14 +1,21 @@
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { useToast, ToastContainer } from './components/ui/Toast'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
+
+// 重定向組件：處理設計資產詳情頁的路由參數
+const DesignAssetsRedirect = () => {
+  const { name } = useParams()
+  return <Navigate to={`/library/assets/${name}`} replace />
+}
 import ProjectHub from './pages/ProjectHub'
 import DesignAssets from './pages/DesignAssets'
 import TemplateGenerator from './pages/TemplateGenerator'
 import AISpecGenerator from './pages/AISpecGenerator'
 import FigmaExports from './pages/FigmaExports'
+import SlicePackages from './pages/SlicePackages'
 import DesignModuleDetail from './pages/DesignModuleDetail'
 import Settings from './pages/Settings'
 
@@ -34,6 +41,7 @@ function App() {
             <Route path="/library/templates" element={<TemplateGenerator />} />
             <Route path="/library/ai-specs" element={<AISpecGenerator />} />
             <Route path="/library/figma-exports" element={<FigmaExports />} />
+            <Route path="/library/slice-packages" element={<SlicePackages />} />
             
             {/* 其他頁面 */}
             <Route path="/dashboard" element={<Dashboard />} />
@@ -41,7 +49,7 @@ function App() {
             
             {/* 向後相容的舊路由 */}
             <Route path="/design-assets" element={<Navigate to="/library/assets" replace />} />
-            <Route path="/design-assets/:name" element={<Navigate to="/library/assets/:name" replace />} />
+            <Route path="/design-assets/:name" element={<DesignAssetsRedirect />} />
             <Route path="/template-generator" element={<Navigate to="/library/templates" replace />} />
             <Route path="/ai-spec-generator" element={<Navigate to="/library/ai-specs" replace />} />
           </Routes>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeftIcon, DocumentArrowDownIcon, ArrowPathIcon, CloudArrowUpIcon, EyeIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, DocumentArrowDownIcon, ArrowPathIcon, CloudArrowUpIcon, EyeIcon, TrashIcon, ChartBarIcon, MapIcon, DocumentIcon, FolderIcon, PencilIcon, CodeBracketIcon, EllipsisVerticalIcon, PlusIcon, XMarkIcon, CheckIcon, MagnifyingGlassIcon, FunnelIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import { useDesignModulesStore } from '../stores/designModules'
 import { generateSlicePackage, uploadDesignAsset, listAssets, deleteDesignAsset, getModuleTree, createModulePage, deleteModulePage, renameModulePage, createSubpage, deleteSubpage, renameSubpage, setPageOrder, setSubpageOrder, applyCrudSubpages, updatePageMeta, updateSubpageMeta, generateModuleMermaidHtml, generateModuleCrudMermaidHtml, generatePageMermaidHtml, generateUserWorkflowMermaidHtml, type PageNode } from '../utils/tauriCommands'
 import MetaEditorModal from '../components/MetaEditorModal'
@@ -40,6 +40,9 @@ const DesignModuleDetail: React.FC = () => {
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set())
   const [bulkAction, setBulkAction] = useState<'delete' | 'status' | null>(null)
   const [dragOver, setDragOver] = useState<string | null>(null)
+  const [showSlicePackageModal, setShowSlicePackageModal] = useState(false)
+  const [uploadModalPage, setUploadModalPage] = useState<string | null>(null)
+  const [pageMenuOpen, setPageMenuOpen] = useState<string | null>(null)
 
   const reorder = <T,>(arr: T[], from: number, to: number): T[] => {
     const a = arr.slice()
@@ -313,7 +316,7 @@ const DesignModuleDetail: React.FC = () => {
                   }
                 }}
               >
-                <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center justify-between px-3 py-3 min-h-[60px]">
                   <div className="text-sm text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -342,7 +345,7 @@ const DesignModuleDetail: React.FC = () => {
                       onChange={(e) => setRenaming({ slug: p.slug, to: e.target.value })}
                       className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white"
                     />
-                    <button className="btn-primary text-sm" onClick={async () => {
+                    <button className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-green-500 dark:border-green-600 bg-gradient-to-r from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 text-white hover:from-green-600 hover:to-green-700 dark:hover:from-green-700 dark:hover:to-green-800 hover:border-green-600 dark:hover:border-green-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={async () => {
                       if (!renaming) return
                       try {
                         await renameModulePage(moduleName, renaming.slug, renaming.to)
@@ -353,49 +356,122 @@ const DesignModuleDetail: React.FC = () => {
                         const m = e instanceof Error ? e.message : String(e)
                         showError('重新命名失敗', m)
                       }
-                    }}>確定</button>
-                    <button className="btn-secondary text-sm" onClick={() => setRenaming(null)}>取消</button>
+                    }}>
+                      <CheckIcon className="h-3 w-3" />
+                      確定
+                    </button>
+                    <button className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={() => setRenaming(null)}>
+                      <XMarkIcon className="h-3 w-3" />
+                      取消
+                    </button>
                     </>
                   ) : (
                     <>
-                      <button className="btn-secondary text-sm" onClick={() => setRenaming({ slug: p.slug, to: p.slug })}>重新命名</button>
-                      <button className="btn-secondary text-sm" onClick={() => setMetaEditor({ kind: 'page', slug: p.slug, data: p })}>編輯</button>
-                      <button className="btn-accent text-sm" onClick={() => setSelectedPageForAssets(p.slug)}>📁 資產管理</button>
-                      <button className="btn-secondary text-sm" onClick={async () => {
-                        if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
-                        try {
-                          const path = await generatePageMermaidHtml(moduleName, p.slug)
-                          const { open } = await import('@tauri-apps/plugin-shell')
-                          await open(path)
-                          showSuccess('頁面站點圖已生成並開啟')
-                        } catch (e) {
-                          const m = e instanceof Error ? e.message : String(e)
-                          showError('頁面站點圖生成失敗', m)
-                        }
-                      }}>頁面站點圖 HTML</button>
-                      <button className="btn-secondary text-sm" onClick={async () => {
-                        if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
-                        try {
-                          const path = await generateModuleMermaidHtml(moduleName)
-                          const { open } = await import('@tauri-apps/plugin-shell')
-                          await open(path)
-                          showSuccess('模組站點圖已生成並開啟')
-                        } catch (e) {
-                          const m = e instanceof Error ? e.message : String(e)
-                          showError('模組站點圖生成失敗', m)
-                        }
-                      }}>模組站點圖 HTML</button>
-                      <button className="btn-secondary text-sm" onClick={async () => {
-                        if (!confirm(`刪除頁面 ${p.slug}？`)) return
-                        try {
-                          await deleteModulePage(moduleName, p.slug)
-                          await refreshPages()
-                          showSuccess('已刪除')
-                        } catch (e) {
-                          const m = e instanceof Error ? e.message : String(e)
-                          showError('刪除失敗', m)
-                        }
-                      }}>刪除</button>
+                      {/* 主要操作按鈕 */}
+                      <button 
+                        className="group relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200" 
+                        onClick={() => setMetaEditor({ kind: 'page', slug: p.slug, data: p })}
+                        title="編輯頁面設定"
+                      >
+                        <PencilIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                      </button>
+                      <button 
+                        className="group relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 border border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500 transition-all duration-200"
+                        onClick={() => setSelectedPageForAssets(p.slug)}
+                        title="管理資產"
+                      >
+                        <FolderIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                      </button>
+                      <button 
+                        className="group relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-green-100 dark:hover:bg-green-900/30 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 border border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-500 transition-all duration-200"
+                        onClick={() => setUploadModalPage(p.slug)}
+                        title="上傳資產"
+                      >
+                        <CloudArrowUpIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                      </button>
+                      
+                      {/* 更多選項下拉選單 */}
+                      <div className="relative">
+                        <button
+                          className="group relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-purple-100 dark:hover:bg-purple-900/30 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500 transition-all duration-200"
+                          onClick={() => setPageMenuOpen(pageMenuOpen === p.slug ? null : p.slug)}
+                          title="更多選項"
+                        >
+                          <EllipsisVerticalIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                        </button>
+                        
+                        {pageMenuOpen === p.slug && (
+                          <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                            <button
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                              onClick={() => {
+                                setRenaming({ slug: p.slug, to: p.slug })
+                                setPageMenuOpen(null)
+                              }}
+                            >
+                              <PencilIcon className="h-3 w-3" />
+                              重新命名
+                            </button>
+                            <button
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                              onClick={async () => {
+                                setPageMenuOpen(null)
+                                if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
+                                try {
+                                  const path = await generatePageMermaidHtml(moduleName, p.slug)
+                                  const { open } = await import('@tauri-apps/plugin-shell')
+                                  await open(path)
+                                  showSuccess('頁面站點圖已生成並開啟')
+                                } catch (e) {
+                                  const m = e instanceof Error ? e.message : String(e)
+                                  showError('頁面站點圖生成失敗', m)
+                                }
+                              }}
+                            >
+                              <MapIcon className="h-3 w-3" />
+                              生成頁面站點圖
+                            </button>
+                            <button
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                              onClick={async () => {
+                                setPageMenuOpen(null)
+                                if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
+                                try {
+                                  const path = await generateModuleMermaidHtml(moduleName)
+                                  const { open } = await import('@tauri-apps/plugin-shell')
+                                  await open(path)
+                                  showSuccess('模組站點圖已生成並開啟')
+                                } catch (e) {
+                                  const m = e instanceof Error ? e.message : String(e)
+                                  showError('模組站點圖生成失敗', m)
+                                }
+                              }}
+                            >
+                              <CodeBracketIcon className="h-3 w-3" />
+                              生成模組站點圖
+                            </button>
+                            <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                            <button
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2"
+                              onClick={async () => {
+                                setPageMenuOpen(null)
+                                if (!confirm(`刪除頁面 ${p.slug}？`)) return
+                                try {
+                                  await deleteModulePage(moduleName, p.slug)
+                                  await refreshPages()
+                                  showSuccess('已刪除')
+                                } catch (e) {
+                                  const m = e instanceof Error ? e.message : String(e)
+                                  showError('刪除失敗', m)
+                                }
+                              }}
+                            >
+                              <TrashIcon className="h-3 w-3" />
+                              刪除頁面
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
@@ -407,12 +483,35 @@ const DesignModuleDetail: React.FC = () => {
                     value={newSubSlug[p.slug] || ''}
                     onChange={(e) => setNewSubSlug((prev) => ({ ...prev, [p.slug]: e.target.value }))}
                     placeholder={`${p.slug}-sub`}
-                    className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white"
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-500 focus:border-blue-300 dark:focus:border-blue-500 transition-all duration-200"
                   />
-                  <button className="btn-primary text-sm" onClick={async () => {
+                  <button className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-300 dark:border-blue-400 bg-gradient-to-r from-blue-300 to-blue-400 dark:from-blue-400 dark:to-blue-500 text-white hover:from-blue-400 hover:to-blue-500 dark:hover:from-blue-500 dark:hover:to-blue-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg" onClick={async () => {
                     const slug = (newSubSlug[p.slug] || '').trim()
-                    if (!slug) return
+                    if (!slug) {
+                      showError('請輸入子頁名稱')
+                      return
+                    }
                     const list = slug.split(',').map(s => s.trim()).filter(Boolean)
+                    
+                    if (!store.tauriAvailable) {
+                      // Fallback for non-Tauri environment
+                      const newSubpages = list.map(s => ({
+                        slug: s,
+                        path: `${p.path}/${s}`,
+                        title: s,
+                        status: 'draft',
+                        children: []
+                      }))
+                      setTree(tree.map(node => 
+                        node.slug === p.slug 
+                          ? { ...node, children: [...node.children, ...newSubpages] }
+                          : node
+                      ))
+                      setNewSubSlug((prev) => ({ ...prev, [p.slug]: '' }))
+                      showSuccess(`已新增 ${list.length} 個子頁（本地模式）`)
+                      return
+                    }
+                    
                     try {
                       for (const s of list) {
                         await createSubpage(moduleName, p.slug, s)
@@ -425,7 +524,25 @@ const DesignModuleDetail: React.FC = () => {
                       showError('新增子頁失敗', m)
                     }
                   }}>新增子頁</button>
-                  <button className="btn-secondary text-sm" onClick={async () => {
+                  <button className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-400 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-500 dark:to-gray-600 text-gray-700 dark:text-gray-100 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-400 dark:hover:to-gray-500 hover:border-gray-400 dark:hover:border-gray-300 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={async () => {
+                    if (!store.tauriAvailable) {
+                      // Fallback for non-Tauri environment
+                      const crudPages = ['list', 'create', 'edit', 'delete'].map(action => ({
+                        slug: action,
+                        path: `${p.path}/${action}`,
+                        title: action,
+                        status: 'draft',
+                        children: []
+                      }))
+                      setTree(tree.map(node => 
+                        node.slug === p.slug 
+                          ? { ...node, children: [...node.children, ...crudPages] }
+                          : node
+                      ))
+                      showSuccess(`已套用 CRUD（新增 4 個子頁）（本地模式）`)
+                      return
+                    }
+                    
                     try {
                       const created = await applyCrudSubpages(moduleName, p.slug)
                       await refreshPages()
@@ -444,7 +561,7 @@ const DesignModuleDetail: React.FC = () => {
                         p.children.map((c, cidx) => (
                           <div
                             key={c.slug}
-                            className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5"
+                            className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded px-3 py-2 ml-6 bg-gray-50 dark:bg-gray-800/50"
                             draggable
                             onDragStart={() => setDrag({ kind: 'sub', parent: p.slug, slug: c.slug })}
                             onDragOver={(e) => {
@@ -469,16 +586,23 @@ const DesignModuleDetail: React.FC = () => {
                               }
                             }}
                           >
-                        <div className="text-sm text-gray-800 dark:text-gray-200">{c.slug} <span className="text-gray-500">({c.path})</span></div>
+                        <div className="text-sm text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                          <span className="text-blue-500 dark:text-blue-400">└─</span>
+                          <span className="font-medium">{c.slug}</span>
+                          <span className="text-gray-500 text-xs">({c.path})</span>
+                          {c.status && (
+                            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[10px] text-gray-700 dark:text-gray-300">{c.status}</span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           {renaming?.slug === `${p.slug}/${c.slug}` ? (
                             <>
                               <input
                                 value={renaming.to}
                                 onChange={(e) => setRenaming({ slug: `${p.slug}/${c.slug}`, to: e.target.value })}
-                                className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white"
+                                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-emerald-300 dark:focus:ring-emerald-500 focus:border-emerald-300 dark:focus:border-emerald-500 transition-all duration-200"
                               />
-                              <button className="btn-primary text-sm" onClick={async () => {
+                              <button className="group relative px-3 py-2 text-sm font-medium rounded-lg border border-emerald-300 dark:border-emerald-400 bg-gradient-to-r from-emerald-300 to-emerald-400 dark:from-emerald-400 dark:to-emerald-500 text-white hover:from-emerald-400 hover:to-emerald-500 dark:hover:from-emerald-500 dark:hover:to-emerald-600 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={async () => {
                                 if (!renaming) return
                                 try {
                                   await renameSubpage(moduleName, p.slug, c.slug, renaming.to)
@@ -490,24 +614,42 @@ const DesignModuleDetail: React.FC = () => {
                                   showError('重新命名失敗', m)
                                 }
                               }}>確定</button>
-                              <button className="btn-secondary text-sm" onClick={() => setRenaming(null)}>取消</button>
+                              <button className="group relative px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-400 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-500 dark:to-gray-600 text-gray-700 dark:text-gray-100 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-400 dark:hover:to-gray-500 hover:border-gray-400 dark:hover:border-gray-300 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={() => setRenaming(null)}>取消</button>
                             </>
                           ) : (
-                            <>
-                              <button className="btn-secondary text-sm" onClick={() => setRenaming({ slug: `${p.slug}/${c.slug}`, to: c.slug })}>重新命名</button>
-                              <button className="btn-secondary text-sm" onClick={() => setMetaEditor({ kind: 'sub', parent: p.slug, slug: c.slug, data: c })}>編輯</button>
-                              <button className="btn-secondary text-sm" onClick={async () => {
-                                if (!confirm(`刪除子頁 ${c.slug}？`)) return
-                                try {
-                                  await deleteSubpage(moduleName, p.slug, c.slug)
-                                  await refreshPages()
-                                  showSuccess('已刪除')
-                                } catch (e) {
-                                  const m = e instanceof Error ? e.message : String(e)
-                                  showError('刪除失敗', m)
-                                }
-                              }}>刪除</button>
-                            </>
+                            <div className="flex items-center gap-2">
+                              <button 
+                                className="group relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200" 
+                                onClick={() => setMetaEditor({ kind: 'sub', parent: p.slug, slug: c.slug, data: c })}
+                                title="編輯子頁設定"
+                              >
+                                <PencilIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                              </button>
+                              <button 
+                                className="group relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-green-100 dark:hover:bg-green-900/30 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 border border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-500 transition-all duration-200"
+                                onClick={() => setRenaming({ slug: `${p.slug}/${c.slug}`, to: c.slug })}
+                                title="重新命名"
+                              >
+                                <DocumentIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                              </button>
+                              <button 
+                                className="group relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 border border-gray-200 dark:border-gray-600 hover:border-red-300 dark:hover:border-red-500 transition-all duration-200"
+                                onClick={async () => {
+                                  if (!confirm(`刪除子頁 ${c.slug}？`)) return
+                                  try {
+                                    await deleteSubpage(moduleName, p.slug, c.slug)
+                                    await refreshPages()
+                                    showSuccess('已刪除')
+                                  } catch (e) {
+                                    const m = e instanceof Error ? e.message : String(e)
+                                    showError('刪除失敗', m)
+                                  }
+                                }}
+                                title="刪除子頁"
+                              >
+                                <TrashIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -615,17 +757,17 @@ const DesignModuleDetail: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/design-assets" className="btn-secondary inline-flex items-center gap-2">
-            <ArrowLeftIcon className="h-5 w-5" /> 返回
+          <Link to="/design-assets" className="group relative inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 shadow-sm hover:shadow-md">
+            <ArrowLeftIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" /> 返回
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{moduleName}</h1>
             <p className="text-gray-600 dark:text-gray-400">模組詳情與資產管理</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
-            className="btn-secondary"
+            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
             onClick={async () => {
               if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
               try {
@@ -639,11 +781,18 @@ const DesignModuleDetail: React.FC = () => {
             }}
             disabled={!store.tauriAvailable}
           >
+            <FolderIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
             {store.viewArchived ? '打開封存資料夾' : '打開模組資料夾'}
           </button>
-          <button className="btn-secondary" onClick={doArchiveModule} disabled={!store.tauriAvailable}>封存模組</button>
+          <button 
+            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-yellow-200 dark:border-yellow-600 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30 text-yellow-700 dark:text-yellow-300 hover:from-yellow-100 hover:to-yellow-200 dark:hover:from-yellow-800/40 dark:hover:to-yellow-700/40 hover:border-yellow-300 dark:hover:border-yellow-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" 
+            onClick={doArchiveModule} 
+            disabled={!store.tauriAvailable}
+          >
+            封存模組
+          </button>
           <button
-            className="btn-secondary"
+            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-green-200 dark:border-green-600 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 text-green-700 dark:text-green-300 hover:from-green-100 hover:to-green-200 dark:hover:from-green-800/40 dark:hover:to-green-700/40 hover:border-green-300 dark:hover:border-green-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
             onClick={async () => {
               if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
               try {
@@ -660,7 +809,13 @@ const DesignModuleDetail: React.FC = () => {
           >
             還原模組
           </button>
-          <button className="btn-secondary" onClick={doDeleteModule} disabled={!store.tauriAvailable}>刪除模組</button>
+          <button 
+            className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-600 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 text-red-700 dark:text-red-300 hover:from-red-100 hover:to-red-200 dark:hover:from-red-800/40 dark:hover:to-red-700/40 hover:border-red-300 dark:hover:border-red-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" 
+            onClick={doDeleteModule} 
+            disabled={!store.tauriAvailable}
+          >
+            刪除模組
+          </button>
         </div>
       </div>
 
@@ -671,9 +826,9 @@ const DesignModuleDetail: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               頁面 <span className="text-sm text-gray-500 font-normal">({tree.length} 個)</span>
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
-                className="btn-secondary text-sm"
+                className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800 text-blue-700 dark:text-blue-300 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
                 onClick={async () => {
                   if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
                   try {
@@ -685,9 +840,15 @@ const DesignModuleDetail: React.FC = () => {
                     const m = e instanceof Error ? e.message : String(e)
                     showError('生成模組站點圖失敗', m)
                   }
-                }}>模組站點圖 HTML</button>
+                }}
+                disabled={!store.tauriAvailable}
+                title="生成並顯示模組內所有頁面的層級結構關係圖，幫助理解頁面之間的組織架構"
+              >
+                <MapIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                模組站點圖
+              </button>
               <button
-                className="btn-secondary text-sm"
+                className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-800 text-green-700 dark:text-green-300 hover:from-green-100 hover:to-emerald-100 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-green-300 dark:hover:border-green-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
                 onClick={async () => {
                   if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
                   try {
@@ -699,9 +860,15 @@ const DesignModuleDetail: React.FC = () => {
                     const m = e instanceof Error ? e.message : String(e)
                     showError('生成 CRUD 圖失敗', m)
                   }
-                }}>模組 CRUD 圖 HTML</button>
+                }}
+                disabled={!store.tauriAvailable}
+                title="生成顯示新增(Create)、讀取(Read)、更新(Update)、刪除(Delete)操作流程的關係圖，用於理解資料操作流程"
+              >
+                <DocumentIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                CRUD 圖
+              </button>
               <button
-                className="btn-accent text-sm"
+                className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-gray-700 dark:to-gray-800 text-purple-700 dark:text-purple-300 hover:from-purple-100 hover:to-violet-100 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-purple-300 dark:hover:border-purple-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
                 onClick={async () => {
                   if (!store.tauriAvailable) { showError('Tauri 不可用'); return }
                   try {
@@ -713,72 +880,139 @@ const DesignModuleDetail: React.FC = () => {
                     const m = e instanceof Error ? e.message : String(e)
                     showError('生成工作流程圖失敗', m)
                   }
-                }}>🔄 用戶工作流程圖</button>
+                }}
+                disabled={!store.tauriAvailable}
+                title="生成用戶操作流程圖，顯示從用戶角度看系統如何運作，包含用戶動作、系統回應、資料流動等流程"
+              >
+                <ChartBarIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                工作流程圖
+              </button>
             </div>
           </div>
 
           {/* Search and Filter Bar */}
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-            <div className="flex items-center gap-2 flex-1">
-              <input
-                type="text"
-                placeholder="搜尋頁面（名稱或標題）"
-                value={pageFilter}
-                onChange={(e) => setPageFilter(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm"
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm"
-              >
-                <option value="all">所有狀態</option>
-                {uniqueStatuses.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="搜尋頁面"
+                  value={pageFilter}
+                  onChange={(e) => setPageFilter(e.target.value)}
+                  className="w-48 pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-all duration-200"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  aria-label="篩選頁面狀態"
+                  className="pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-all duration-200 appearance-none bg-white dark:bg-gray-700"
+                >
+                  <option value="all">所有狀態</option>
+                  {uniqueStatuses.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FunnelIcon className="h-4 w-4 text-gray-400" />
+                </div>
+                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                  <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
             </div>
 
             {/* Bulk Actions */}
             {selectedPages.size > 0 && (
-              <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
-                <span className="text-sm text-blue-700 dark:text-blue-300">已選 {selectedPages.size} 個</span>
-                <button
-                  className="btn-secondary text-sm"
-                  onClick={bulkDeletePages}
-                >
-                  批次刪除
-                </button>
-                <button
-                  className="btn-secondary text-sm"
-                  onClick={() => setBulkAction('status')}
-                >
-                  批次更新狀態
-                </button>
-                <button
-                  className="btn-secondary text-sm"
-                  onClick={clearPageSelection}
-                >
-                  取消選擇
-                </button>
+              <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-4 py-3 rounded-xl border border-blue-200 dark:border-blue-800/30 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">已選 {selectedPages.size} 個頁面</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-red-200 dark:border-red-600 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 text-red-700 dark:text-red-300 hover:from-red-100 hover:to-red-200 dark:hover:from-red-800/40 dark:hover:to-red-700/40 hover:border-red-300 dark:hover:border-red-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                    onClick={bulkDeletePages}
+                  >
+                    <TrashIcon className="h-3 w-3 group-hover:scale-110 transition-transform duration-200" />
+                    批次刪除
+                  </button>
+                  <button
+                    className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-yellow-200 dark:border-yellow-600 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30 text-yellow-700 dark:text-yellow-300 hover:from-yellow-100 hover:to-yellow-200 dark:hover:from-yellow-800/40 dark:hover:to-yellow-700/40 hover:border-yellow-300 dark:hover:border-yellow-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                    onClick={() => setBulkAction('status')}
+                  >
+                    <PencilIcon className="h-3 w-3 group-hover:scale-110 transition-transform duration-200" />
+                    批次更新狀態
+                  </button>
+                  <button
+                    className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                    onClick={clearPageSelection}
+                  >
+                    <XMarkIcon className="h-3 w-3 group-hover:scale-110 transition-transform duration-200" />
+                    取消選擇
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
           {/* Add Page Bar */}
-          <div className="flex items-center gap-2">
-            <input
-              value={newPageSlug}
-              onChange={(e) => setNewPageSlug(e.target.value)}
-              placeholder="new-page-slug"
-              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm"
-            />
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <input
+                value={newPageSlug}
+                onChange={(e) => setNewPageSlug(e.target.value)}
+                placeholder="輸入頁面名稱，多個用逗號分隔"
+                className="w-64 pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-all duration-200"
+              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <PlusIcon className="h-4 w-4 text-gray-400" />
+              </div>
+            </div>
             <button
-              className="btn-primary text-sm"
-              disabled={!store.tauriAvailable || !newPageSlug.trim()}
+              className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-500 dark:border-blue-600 bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 text-white hover:from-blue-600 hover:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 hover:border-blue-600 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!newPageSlug.trim()}
               onClick={async () => {
                 const list = newPageSlug.split(',').map(s => s.trim()).filter(Boolean)
-                if (list.length === 0) return
+                if (list.length === 0) {
+                  showError('請輸入頁面名稱')
+                  return
+                }
+                
+                // 檢查頁面名稱重複
+                const existingSlugs = tree.map(p => p.slug)
+                const duplicateSlugs = list.filter(slug => existingSlugs.includes(slug))
+                if (duplicateSlugs.length > 0) {
+                  showError('頁面名稱重複', `以下頁面名稱已存在：${duplicateSlugs.join(', ')}`)
+                  return
+                }
+                
+                // 檢查頁面名稱格式
+                const invalidSlugs = list.filter(slug => !/^[a-zA-Z0-9_-]+$/.test(slug))
+                if (invalidSlugs.length > 0) {
+                  showError('頁面名稱格式錯誤', `以下頁面名稱包含無效字符：${invalidSlugs.join(', ')}\n只允許使用字母、數字、下劃線和連字符`)
+                  return
+                }
+                
+                if (!store.tauriAvailable) {
+                  // Fallback for non-Tauri environment - add to local state
+                  const newPages = list.map(slug => ({
+                    slug,
+                    path: `${moduleName}/${slug}`,
+                    title: slug,
+                    status: 'draft',
+                    children: []
+                  }))
+                  setTree([...tree, ...newPages])
+                  setNewPageSlug('')
+                  showSuccess(`已新增 ${list.length} 個頁面（本地模式）`)
+                  return
+                }
+                setPageLoading(true)
                 try {
                   for (const slug of list) {
                     await createModulePage(moduleName, slug)
@@ -789,17 +1023,39 @@ const DesignModuleDetail: React.FC = () => {
                 } catch (e) {
                   const m = e instanceof Error ? e.message : String(e)
                   showError('新增頁面失敗', m)
+                } finally {
+                  setPageLoading(false)
                 }
               }}
             >
-              新增頁面
+              {pageLoading ? (
+                <>
+                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                  新增中...
+                </>
+              ) : (
+                <>
+                  <PlusIcon className="h-4 w-4" />
+                  新增頁面
+                </>
+              )}
             </button>
             {filteredTree.length > 0 && (
               <button
-                className="btn-secondary text-sm"
+                className="group relative px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
                 onClick={selectedPages.size === filteredTree.length ? clearPageSelection : selectAllPages}
               >
-                {selectedPages.size === filteredTree.length ? '取消全選' : '全選'}
+                {selectedPages.size === filteredTree.length ? (
+                  <>
+                    <XMarkIcon className="h-4 w-4" />
+                    取消全選
+                  </>
+                ) : (
+                  <>
+                    <CheckIcon className="h-4 w-4" />
+                    全選
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -808,27 +1064,22 @@ const DesignModuleDetail: React.FC = () => {
         {renderPageSection()}
       </div>
 
-      {/* 產生切版說明包 */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">一鍵產生切版說明包</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={genOptions.html} onChange={(e) => setGenOptions({ ...genOptions, html: e.target.checked })} />
-            生成 HTML
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={genOptions.css} onChange={(e) => setGenOptions({ ...genOptions, css: e.target.checked })} />
-            生成 CSS
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={genOptions.responsive} onChange={(e) => setGenOptions({ ...genOptions, responsive: e.target.checked })} />
-            包含響應式
-          </label>
-          <div className="flex md:justify-end gap-2">
+
+      {/* 資產清單 */}
+      <div className="card p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">資產清單</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button 
+              className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-blue-200 dark:border-blue-600 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-700 dark:text-blue-300 hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-800/40 dark:hover:to-blue-700/40 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" 
+              onClick={() => setShowSlicePackageModal(true)}
+              disabled={generating}
+            >
+              <DocumentArrowDownIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+              生成切版說明包
+            </button>
             <button
-              className="btn-secondary"
+              className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
               onClick={async () => {
                 if (!store.tauriAvailable) {
                   showError('Tauri 不可用')
@@ -846,50 +1097,10 @@ const DesignModuleDetail: React.FC = () => {
             >
               打開輸出資料夾
             </button>
-            <button className="btn-primary flex items-center gap-2" onClick={handleGenerate} disabled={generating}>
-              {generating ? (
-                <ArrowPathIcon className="h-5 w-5 animate-spin" />
-              ) : (
-                <DocumentArrowDownIcon className="h-5 w-5" />
-              )}
-              {generating ? '生成中...' : '生成切版說明包'}
+            <button className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" onClick={refreshAssets} disabled={!store.tauriAvailable}>
+              <ArrowPathIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" /> 重新整理
             </button>
           </div>
-        </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">輸出位置：專案根目錄的 output/&lt;moduleName&gt;</p>
-      </div>
-
-      {/* 上傳資產 */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">上傳資產</h2>
-        </div>
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2">
-              <input type="radio" name="atype" checked={assetType === 'screenshots'} onChange={() => setAssetType('screenshots')} /> 截圖（screenshots）
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="radio" name="atype" checked={assetType === 'html'} onChange={() => setAssetType('html')} /> HTML
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="radio" name="atype" checked={assetType === 'css'} onChange={() => setAssetType('css')} /> CSS
-            </label>
-          </div>
-          <button className="btn-secondary flex items-center gap-2" onClick={handleUpload} disabled={uploading}>
-            <CloudArrowUpIcon className="h-5 w-5" /> {uploading ? '上傳中...' : '選擇檔案並上傳'}
-          </button>
-        </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Tauri 環境下會開啟系統檔案選擇器。</p>
-      </div>
-
-      {/* 資產清單 */}
-      <div className="card p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">資產清單</h2>
-          <button className="btn-secondary flex items-center gap-2" onClick={refreshAssets} disabled={!store.tauriAvailable}>
-            <ArrowPathIcon className="h-5 w-5" /> 重新整理
-          </button>
         </div>
 
         {(['screenshots','html','css'] as const).map((type) => (
@@ -1064,6 +1275,175 @@ const DesignModuleDetail: React.FC = () => {
         </div>
       )}
 
+      {/* 生成切版說明包彈窗 */}
+      {showSlicePackageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowSlicePackageModal(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                生成切版說明包
+              </h3>
+              <button 
+                onClick={() => setShowSlicePackageModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">生成選項</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      checked={genOptions.html} 
+                      onChange={(e) => setGenOptions({ ...genOptions, html: e.target.checked })} 
+                      className="rounded"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">生成 HTML</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      checked={genOptions.css} 
+                      onChange={(e) => setGenOptions({ ...genOptions, css: e.target.checked })} 
+                      className="rounded"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">生成 CSS</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      checked={genOptions.responsive} 
+                      onChange={(e) => setGenOptions({ ...genOptions, responsive: e.target.checked })} 
+                      className="rounded"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">包含響應式</span>
+                  </label>
+                </div>
+              </div>
+              
+              <div className="text-xs text-gray-500 dark:text-gray-400 p-3 bg-gray-50 dark:bg-gray-800/50 rounded">
+                <strong>輸出位置：</strong>專案根目錄的 output/{moduleName}
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button 
+                className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow-md"
+                onClick={() => setShowSlicePackageModal(false)}
+              >
+                取消
+              </button>
+              <button 
+                className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg" 
+                onClick={async () => {
+                  setShowSlicePackageModal(false)
+                  await handleGenerate()
+                }} 
+                disabled={generating}
+              >
+                {generating ? (
+                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                ) : (
+                  <DocumentArrowDownIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+                )}
+                {generating ? '生成中...' : '開始生成'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 頁面資產上傳模態框 */}
+      {uploadModalPage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setUploadModalPage(null)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                上傳資產到頁面: {uploadModalPage}
+              </h3>
+              <button 
+                onClick={() => setUploadModalPage(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">選擇資產類型</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      name="upload-type" 
+                      checked={assetType === 'screenshots'} 
+                      onChange={() => setAssetType('screenshots')} 
+                      className="rounded"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">截圖 (screenshots)</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      name="upload-type" 
+                      checked={assetType === 'html'} 
+                      onChange={() => setAssetType('html')} 
+                      className="rounded"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">HTML 檔案</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      name="upload-type" 
+                      checked={assetType === 'css'} 
+                      onChange={() => setAssetType('css')} 
+                      className="rounded"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">CSS 檔案</span>
+                  </label>
+                </div>
+              </div>
+              
+              <div className="text-xs text-gray-500 dark:text-gray-400 p-3 bg-gray-50 dark:bg-gray-800/50 rounded">
+                <strong>說明：</strong>點擊上傳按鈕後，系統會開啟檔案選擇器，讓您選擇要上傳的檔案。檔案會被儲存到此頁面的專屬資料夾中。
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button 
+                className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-400 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-500 dark:to-gray-600 text-gray-700 dark:text-gray-100 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-400 dark:hover:to-gray-500 hover:border-gray-400 dark:hover:border-gray-300 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                onClick={() => setUploadModalPage(null)}
+              >
+                取消
+              </button>
+              <button 
+                className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-300 dark:border-blue-400 bg-gradient-to-r from-blue-300 to-blue-400 dark:from-blue-400 dark:to-blue-500 text-white hover:from-blue-400 hover:to-blue-500 dark:hover:from-blue-500 dark:hover:to-blue-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg" 
+                onClick={async () => {
+                  await handleUpload()
+                  setUploadModalPage(null)
+                }} 
+                disabled={uploading || !store.tauriAvailable}
+              >
+                {uploading ? (
+                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                ) : (
+                  <CloudArrowUpIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+                )}
+                {uploading ? '上傳中...' : '選擇檔案並上傳'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 頁面資產管理模態框 */}
       {selectedPageForAssets && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1071,11 +1451,11 @@ const DesignModuleDetail: React.FC = () => {
           <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                頁面資產管理
+                頁面資產管理 - {selectedPageForAssets}
               </h2>
               <button 
                 onClick={() => setSelectedPageForAssets(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                className="group relative p-2 rounded-lg bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 border border-gray-200 dark:border-gray-500 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200"
               >
                 ✕
               </button>

@@ -67,6 +67,8 @@ const AISpecGenerator: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedSpec, setSelectedSpec] = useState<AISpec | null>(null)
+  const [showManualInputModal, setShowManualInputModal] = useState(false)
+  const [manualInputData, setManualInputData] = useState('')
   
   // 表單狀態
   const [formData, setFormData] = useState({
@@ -342,13 +344,22 @@ const AISpecGenerator: React.FC = () => {
               自定義AI規格
             </h2>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary flex items-center"
-          >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            新建規格
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="btn-primary flex items-center"
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              新建規格
+            </button>
+            <button
+              onClick={() => setShowManualInputModal(true)}
+              className="btn-secondary flex items-center"
+            >
+              <DocumentTextIcon className="h-4 w-4 mr-2" />
+              手動輸入
+            </button>
+          </div>
         </div>
         <p className="text-gray-600 dark:text-gray-400">
           根據您的特定需求自定義AI開發規格參數，或選擇下方的預設規格進行使用。
@@ -485,7 +496,7 @@ const AISpecGenerator: React.FC = () => {
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {currentSpecs.map((spec) => (
-                  <tr key={spec.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <tr key={spec.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 h-20">
                     {/* 規格資訊 */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -569,7 +580,11 @@ const AISpecGenerator: React.FC = () => {
                           <EyeIcon className="h-3 w-3 mr-1" />
                           預覽
                         </button>
-                        <button className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-800/40 dark:hover:text-green-200">
+                        <button 
+                          disabled
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-gray-600/30 dark:text-gray-400"
+                          title="功能開發中，暫時停用"
+                        >
                           <CodeBracketIcon className="h-3 w-3 mr-1" />
                           生成
                         </button>
@@ -614,7 +629,7 @@ const AISpecGenerator: React.FC = () => {
         {/* 分頁控制 */}
         {!loading && filteredSpecs.length > itemsPerPage && (
           <div className="px-6 py-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-end gap-8">
               <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
                 顯示第 {startIndex + 1} - {Math.min(endIndex, filteredSpecs.length)} 筆，共 {filteredSpecs.length} 筆AI規格
               </div>
@@ -744,14 +759,14 @@ const AISpecGenerator: React.FC = () => {
                     setShowCreateModal(false)
                     setFormData({ name: '', description: '', type: AISpecType.BASIC, category: 'frontend', complexity: 'simple', tags: [] })
                   }}
-                  className="flex-1 btn-secondary"
+                  className="flex-1 group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   取消
                 </button>
                 <button
                   onClick={handleCreateSpec}
                   disabled={!formData.name.trim()}
-                  className="flex-1 btn-primary disabled:opacity-50"
+                  className="flex-1 group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
                 >
                   建立
                 </button>
@@ -861,6 +876,94 @@ const AISpecGenerator: React.FC = () => {
                   更新
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 手動輸入彈窗 */}
+      {showManualInputModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowManualInputModal(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                手動輸入 AI 規格
+              </h3>
+              <button 
+                onClick={() => setShowManualInputModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">使用說明</h4>
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    請將從 AI 工具（如 ChatGPT、Claude）獲得的規格內容貼上到下方文本框中。系統會自動解析格式並創建新的 AI 規格。
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    AI 規格內容
+                  </label>
+                  <textarea
+                    value={manualInputData}
+                    onChange={(e) => setManualInputData(e.target.value)}
+                    placeholder="請貼上 AI 生成的規格內容...
+
+支援的格式：
+- Markdown 格式
+- JSON 格式
+- 純文本格式
+
+例如：
+# 響應式設計規格
+## 概述
+...
+## 斷點設置
+..."
+                    className="w-full h-96 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                  />
+                </div>
+                
+                {manualInputData.trim() && (
+                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                    <h4 className="text-sm font-medium text-green-900 dark:text-green-200 mb-2">預覽資訊</h4>
+                    <div className="text-sm text-green-700 dark:text-green-300 space-y-1">
+                      <p>內容長度: {manualInputData.length} 字符</p>
+                      <p>行數: {manualInputData.split('\n').length}</p>
+                      <p>格式: {manualInputData.trim().startsWith('{') ? 'JSON' : manualInputData.includes('#') ? 'Markdown' : '純文本'}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="sticky bottom-0 bg-white dark:bg-gray-800 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button 
+                className="btn-secondary"
+                onClick={() => {
+                  setShowManualInputModal(false)
+                  setManualInputData('')
+                }}
+              >
+                取消
+              </button>
+              <button 
+                className="btn-primary"
+                disabled={!manualInputData.trim()}
+                onClick={() => {
+                  // TODO: 實作解析和創建AI規格的邏輯
+                  alert('解析功能開發中，將來會自動解析內容並創建AI規格')
+                  setShowManualInputModal(false)
+                  setManualInputData('')
+                }}
+              >
+                解析並創建
+              </button>
             </div>
           </div>
         </div>

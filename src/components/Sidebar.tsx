@@ -11,7 +11,8 @@ import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
   BuildingLibraryIcon,
-  RocketLaunchIcon
+  RocketLaunchIcon,
+  ArchiveBoxIcon
 } from '@heroicons/react/24/outline'
 
 // 導航項目介面
@@ -66,6 +67,13 @@ const navigation: NavItem[] = [
         href: '/library/figma-exports',
         icon: ArrowUpTrayIcon,
         description: 'Figma 導出記錄管理',
+        enabled: true,
+      },
+      {
+        name: '切版包',
+        href: '/library/slice-packages',
+        icon: ArchiveBoxIcon,
+        description: '切版包管理與編輯',
         enabled: true,
       }
     ]
