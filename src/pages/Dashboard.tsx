@@ -106,7 +106,7 @@ const Dashboard: React.FC = () => {
               <div className={`p-3 rounded-lg ${card.color}`}>
                 <card.icon className="h-6 w-6 text-white" />
               </div>
-              <div className="ml-4">
+              <div className="ml-4 flex-1">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   {card.title}
                 </p>

@@ -9,7 +9,8 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
-  PlusIcon
+  PlusIcon,
+  PencilIcon
 } from '@heroicons/react/24/outline'
 import { useToast } from '../components/ui/Toast'
 import PageLayout from '../components/PageLayout'
@@ -67,6 +68,19 @@ const FigmaExports: React.FC = () => {
   const [showNewExportModal, setShowNewExportModal] = useState(false)
   const [exportingNew, setExportingNew] = useState(false)
   const [selectedModules, setSelectedModules] = useState<string[]>([]) // 選中的模組 ID
+  
+  // 編輯功能狀態
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<FigmaExportRecord | null>(null)
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    exportFormat: 'figma-json' as const,
+    includedContent: {
+      assets: false,
+      tokens: false,
+      components: false
+    }
+  })
   
   // 載入示範資料
   const loadExportRecords = async () => {
@@ -299,12 +313,43 @@ const FigmaExports: React.FC = () => {
     }, 1000)
   }
 
-  // 處理刪除
+    // 處理刪除
   const handleDelete = (record: FigmaExportRecord) => {
     if (!confirm(`確認刪除「${record.name}」的導出記錄？`)) return
-
+    
     setExportRecords(prev => prev.filter(r => r.id !== record.id))
     showSuccess('刪除成功', `已刪除 ${record.name} 的導出記錄`)
+  }
+
+  // 處理編輯
+  const handleEdit = (record: FigmaExportRecord) => {
+    setEditingRecord(record)
+    setEditFormData({
+      name: record.name,
+      exportFormat: record.exportFormat,
+      includedContent: { ...record.includedContent }
+    })
+    setShowEditModal(true)
+  }
+
+  // 處理更新
+  const handleUpdate = () => {
+    if (!editingRecord) return
+    
+    const updatedRecord = {
+      ...editingRecord,
+      name: editFormData.name,
+      exportFormat: editFormData.exportFormat,
+      includedContent: editFormData.includedContent
+    }
+    
+    setExportRecords(prev => prev.map(r => 
+      r.id === editingRecord.id ? updatedRecord : r
+    ))
+    
+    showSuccess('更新成功', `已更新 ${editingRecord.name} 的導出記錄`)
+    setShowEditModal(false)
+    setEditingRecord(null)
   }
 
   // 格式化時間
@@ -582,6 +627,13 @@ const FigmaExports: React.FC = () => {
                           </button>
                         )}
                         <button
+                          onClick={() => handleEdit(record)}
+                          className="p-1 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+                          title="編輯"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => handleDelete(record)}
                           className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
                           title="刪除"
@@ -689,6 +741,117 @@ const FigmaExports: React.FC = () => {
                   loading={exportingNew}
                   moduleCount={selectedModules.length > 0 ? selectedModules.length : moduleStore.modules.filter(m => m.status === 'active').length}
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 編輯導出記錄 Modal */}
+      {showEditModal && editingRecord && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <PencilIcon className="h-5 w-5 text-green-600" />
+                  編輯導出記錄
+                </h3>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <XCircleIcon className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    記錄名稱
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="輸入記錄名稱"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    導出格式
+                  </label>
+                  <select
+                    value={editFormData.exportFormat}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, exportFormat: e.target.value as any }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="figma-json">Figma JSON</option>
+                    <option value="design-tokens">Design Tokens</option>
+                    <option value="component-kit">Component Kit</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    包含內容
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={editFormData.includedContent.assets}
+                        onChange={(e) => setEditFormData(prev => ({
+                          ...prev,
+                          includedContent: { ...prev.includedContent, assets: e.target.checked }
+                        }))}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">設計資產</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={editFormData.includedContent.tokens}
+                        onChange={(e) => setEditFormData(prev => ({
+                          ...prev,
+                          includedContent: { ...prev.includedContent, tokens: e.target.checked }
+                        }))}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">設計令牌</span>
+                    </label>
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={editFormData.includedContent.components}
+                        onChange={(e) => setEditFormData(prev => ({
+                          ...prev,
+                          includedContent: { ...prev.includedContent, components: e.target.checked }
+                        }))}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">組件庫</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleUpdate}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                >
+                  更新
+                </button>
               </div>
             </div>
           </div>

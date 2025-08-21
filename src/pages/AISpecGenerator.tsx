@@ -376,6 +376,61 @@ const AISpecGenerator: React.FC = () => {
       bestPractices: []
     })
   }
+
+  // 開啟內容編輯時載入實際內容
+  const handleOpenContentEdit = (spec: AISpec) => {
+    setSelectedSpec(spec)
+    
+    // 如果是 ErSlice 前端規範，載入實際內容
+    if (spec.id === 'erslice-frontend-style-guide') {
+      setSpecContentData({
+        overview: 'ErSlice 前端開發規範，包含按鈕系統、顏色規範、排版系統等完整指南',
+        requirements: [
+          '統一的按鈕尺寸系統（大、中、小、超小）',
+          '純色設計，禁止使用漸層效果',
+          '語義化顏色系統（主要、次要、成功、警告、危險）',
+          '響應式設計支援',
+          '無障礙設計標準'
+        ],
+        steps: [
+          '1. 使用 Button 組件，避免自定義樣式',
+          '2. 按鈕尺寸：大按鈕用 size="lg"，中按鈕用 size="md"，小按鈕用 size="sm"，超小按鈕用 size="xs"',
+          '3. 重新整理按鈕統一使用 size="sm"',
+          '4. 顏色變體：primary（藍色）、secondary（灰色）、success（翠綠色）、warning（琥珀色）、danger（玫瑰色）',
+          '5. 所有按鈕使用純色背景，禁止 bg-gradient-to-r 等漸層效果'
+        ],
+        notes: [
+          '按鈕顏色要柔和，避免過於鮮豔',
+          '保持整個系統的視覺一致性',
+          '按鈕大小要根據重要性區分',
+          'hover 效果要平滑自然'
+        ],
+        codeExamples: [
+          '// 正確的按鈕使用方式\n<Button variant="primary" size="md">主要按鈕</Button>\n<Button variant="secondary" size="sm">次要按鈕</Button>',
+          '// 錯誤的漸層按鈕（禁止使用）\n<button className="bg-gradient-to-r from-blue-400 to-blue-600">錯誤示例</button>',
+          '// 正確的純色按鈕\n<Button variant="success" size="lg">成功按鈕</Button>'
+        ],
+        bestPractices: [
+          '優先使用 Button 組件而非原生 button 元素',
+          '按鈕尺寸要與其重要性相匹配',
+          '保持顏色系統的一致性',
+          '定期檢查並移除任何漸層效果'
+        ]
+      })
+    } else {
+      // 其他規格載入預設內容
+      setSpecContentData({
+        overview: spec.description,
+        requirements: ['需求項目 1', '需求項目 2', '需求項目 3'],
+        steps: ['步驟 1', '步驟 2', '步驟 3'],
+        notes: ['注意事項 1', '注意事項 2'],
+        codeExamples: ['代碼範例 1', '代碼範例 2'],
+        bestPractices: ['最佳實踐 1', '最佳實踐 2']
+      })
+    }
+    
+    setShowContentEditModal(true)
+  }
   
   // 獲取類型標籤
   const getTypeLabel = (type: AISpecType) => {
@@ -723,10 +778,7 @@ const AISpecGenerator: React.FC = () => {
                           預覽
                         </button>
                         <button 
-                          onClick={() => {
-                            setSelectedSpec(spec)
-                            setShowContentEditModal(true)
-                          }}
+                          onClick={() => handleOpenContentEdit(spec)}
                           className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-800/40 dark:hover:text-green-200"
                         >
                           <DocumentTextIcon className="h-3 w-3 mr-1" />
