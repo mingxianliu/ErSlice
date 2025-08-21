@@ -87,6 +87,21 @@ const AISpecGenerator: React.FC = () => {
       // 模擬示範數據
       const baseSpecs: AISpec[] = [
         {
+          id: 'erslice-frontend-style-guide',
+          name: 'ErSlice 前端規範（可執行版）',
+          description: '字體階層、按鈕層級、表格/列表/分頁/樹狀統一樣式、ARIA 與響應式規範；已落地於 src/index.css 與 Button.tsx。',
+          type: AISpecType.FULL_GUIDE,
+          format: AISpecFormat.MARKDOWN,
+          category: 'frontend',
+          tags: ['UI','樣式系統','A11y','RWD','設計令牌'],
+          complexity: 'medium',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          author: '系統預設',
+          usageCount: 0,
+          isCustom: false
+        },
+        {
           id: 'responsive-design',
           name: '響應式設計規格',
           description: 'RWD響應式網頁設計開發規範，包含斷點設置、彈性佈局、媒體查詢等詳細說明',
