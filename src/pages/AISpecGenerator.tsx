@@ -12,9 +12,13 @@ import {
   CodeBracketIcon,
   DocumentTextIcon,
   CogIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline'
 import { AISpecType, AISpecFormat } from '../types/aiSpec'
+// 匯入本專案前端規範（摘要版）原始 Markdown 內容做為預覽來源（Vite ?raw）
+// 匯入失敗時會有 fallback 至規格描述文字
+import FrontendStyleGuideMd from '../../docs/FRONTEND_STYLE_GUIDE.md?raw'
 
 // AI規格介面
 interface AISpec {
@@ -69,6 +73,12 @@ const AISpecGenerator: React.FC = () => {
   const [selectedSpec, setSelectedSpec] = useState<AISpec | null>(null)
   const [showManualInputModal, setShowManualInputModal] = useState(false)
   const [manualInputData, setManualInputData] = useState('')
+  // 預覽狀態（顯示彈窗、目前選取規格、內容、載入中與錯誤）
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [previewSpec, setPreviewSpec] = useState<AISpec | null>(null)
+  const [previewContent, setPreviewContent] = useState<string>('')
+  const [previewLoading, setPreviewLoading] = useState<boolean>(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
   
   // 表單狀態
   const [formData, setFormData] = useState({
@@ -205,6 +215,17 @@ const AISpecGenerator: React.FC = () => {
   useEffect(() => {
     loadSpecs()
   }, [])
+
+  // 監聽 ESC 關閉預覽彈窗
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowPreviewModal(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
   
   // 搜尋和篩選
   useEffect(() => {
@@ -333,6 +354,31 @@ const AISpecGenerator: React.FC = () => {
     return new Date(dateString).toLocaleDateString('zh-TW')
   }
 
+  // 開啟預覽：根據規格 ID 載入對應內容；本專案規範使用 docs/FRONTEND_STYLE_GUIDE.md
+  const openPreview = async (spec: AISpec) => {
+    setPreviewSpec(spec)
+    setShowPreviewModal(true)
+    setPreviewLoading(true)
+    setPreviewError(null)
+    try {
+      // 若是本專案可執行前端規範，直接使用已匯入的 Markdown 原文
+      if (spec.id === 'erslice-frontend-style-guide') {
+        // 使用已匯入的字串內容
+        setPreviewContent(FrontendStyleGuideMd || spec.description)
+      } else {
+        // 其他示範規格：先以描述文字作為預覽內容
+        // 未來可擴充為從伺服端或本地檔案載入對應內容
+        setPreviewContent(spec.description)
+      }
+    } catch (err) {
+      console.error('預覽內容載入失敗', err)
+      setPreviewError('內容載入失敗，請稍後重試')
+      setPreviewContent(spec.description)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6 min-h-full bg-gray-50 dark:bg-gray-900">
       {/* 頁面標題 */}
@@ -402,6 +448,7 @@ const AISpecGenerator: React.FC = () => {
               value={filters.type}
               onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value as AISpecType | 'all' }))}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              aria-label="篩選：類型"
             >
               <option value="all">所有類型</option>
               {Object.values(AISpecType).map(type => (
@@ -413,6 +460,7 @@ const AISpecGenerator: React.FC = () => {
               value={filters.category}
               onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              aria-label="篩選：分類"
             >
               <option value="all">所有分類</option>
               <option value="frontend">前端開發</option>
@@ -427,6 +475,7 @@ const AISpecGenerator: React.FC = () => {
               value={filters.complexity}
               onChange={(e) => setFilters(prev => ({ ...prev, complexity: e.target.value as 'simple' | 'medium' | 'complex' | 'all' }))}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              aria-label="篩選：複雜度"
             >
               <option value="all">所有複雜度</option>
               <option value="simple">簡單</option>
@@ -441,6 +490,7 @@ const AISpecGenerator: React.FC = () => {
                 setFilters(prev => ({ ...prev, isCustom: value }))
               }}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              aria-label="篩選：來源"
             >
               <option value="all">所有規格</option>
               <option value="preset">預設規格</option>
@@ -591,7 +641,11 @@ const AISpecGenerator: React.FC = () => {
                     {/* 操作 */}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-1 flex-wrap">
-                        <button className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-800/40 dark:hover:text-blue-200">
+                        <button 
+                          onClick={() => openPreview(spec)}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium rounded transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-800/40 dark:hover:text-blue-200"
+                          aria-label={`預覽 ${spec.name}`}
+                        >
                           <EyeIcon className="h-3 w-3 mr-1" />
                           預覽
                         </button>
@@ -704,6 +758,7 @@ const AISpecGenerator: React.FC = () => {
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="輸入規格名稱"
+                      aria-label="規格名稱"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     />
                   </div>
@@ -714,6 +769,7 @@ const AISpecGenerator: React.FC = () => {
                     <select
                       value={formData.type}
                       onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as AISpecType }))}
+                      aria-label="規格類型"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       {Object.values(AISpecType).map(type => (
@@ -730,6 +786,7 @@ const AISpecGenerator: React.FC = () => {
                     value={formData.description}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="輸入規格描述"
+                    aria-label="規格描述"
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
@@ -742,6 +799,7 @@ const AISpecGenerator: React.FC = () => {
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                      aria-label="分類"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       <option value="frontend">前端開發</option>
@@ -759,6 +817,7 @@ const AISpecGenerator: React.FC = () => {
                     <select
                       value={formData.complexity}
                       onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value as 'simple' | 'medium' | 'complex' }))}
+                      aria-label="複雜度"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       <option value="simple">簡單</option>
@@ -808,6 +867,7 @@ const AISpecGenerator: React.FC = () => {
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      aria-label="規格名稱"
                     />
                   </div>
                   <div>
@@ -818,6 +878,7 @@ const AISpecGenerator: React.FC = () => {
                       value={formData.type}
                       onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as AISpecType }))}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      aria-label="規格類型"
                     >
                       {Object.values(AISpecType).map(type => (
                         <option key={type} value={type}>{getTypeLabel(type)}</option>
@@ -834,6 +895,7 @@ const AISpecGenerator: React.FC = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    aria-label="規格描述"
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -845,6 +907,7 @@ const AISpecGenerator: React.FC = () => {
                       value={formData.category}
                       onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      aria-label="分類"
                     >
                       <option value="frontend">前端開發</option>
                       <option value="backend">後端開發</option>
@@ -862,6 +925,7 @@ const AISpecGenerator: React.FC = () => {
                       value={formData.complexity}
                       onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value as 'simple' | 'medium' | 'complex' }))}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      aria-label="複雜度"
                     >
                       <option value="simple">簡單</option>
                       <option value="medium">中等</option>
@@ -908,8 +972,9 @@ const AISpecGenerator: React.FC = () => {
               <button 
                 onClick={() => setShowManualInputModal(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                aria-label="關閉"
               >
-                ✕
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
@@ -978,6 +1043,66 @@ const AISpecGenerator: React.FC = () => {
                 }}
               >
                 解析並創建
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 規格預覽彈窗 */}
+      {showPreviewModal && previewSpec && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="preview-title"
+          className="fixed inset-0 z-50 flex items-center justify-center"
+        >
+          {/* 背景遮罩，點擊可關閉 */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowPreviewModal(false)}
+          />
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-hidden">
+            {/* 標題列 */}
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 id="preview-title" className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {previewSpec.name}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                  {previewSpec.description}
+                </p>
+              </div>
+              <button
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                aria-label="關閉預覽"
+                onClick={() => setShowPreviewModal(false)}
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* 內容區域 */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {previewLoading ? (
+                <div className="text-center py-12 text-gray-500">
+                  <ArrowPathIcon className="h-8 w-8 animate-spin mx-auto mb-2" />
+                  載入內容中...
+                </div>
+              ) : previewError ? (
+                <div className="text-red-600 dark:text-red-400 text-sm">{previewError}</div>
+              ) : (
+                <article className="prose prose-sm sm:prose lg:prose-lg dark:prose-invert max-w-none">
+                  {/* 以簡單方式渲染 Markdown 字串。此處先用 pre-wrap 顯示，避免 XSS；之後可導入安全的 Markdown renderer */}
+                  <div className="whitespace-pre-wrap break-words">{previewContent}</div>
+                </article>
+              )}
+            </div>
+
+            {/* 底部操作列 */}
+            <div className="sticky bottom-0 bg-white dark:bg-gray-800 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button className="btn-secondary" onClick={() => setShowPreviewModal(false)}>
+                關閉
               </button>
             </div>
           </div>
