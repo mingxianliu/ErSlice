@@ -970,7 +970,7 @@ const DesignModuleDetail: React.FC = () => {
 
             {/* Bulk Actions */}
             {selectedPages.size > 0 && (
-              <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-4 py-3 rounded-xl border border-blue-200 dark:border-blue-800/30 shadow-sm">
+              <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 rounded-xl border border-blue-200 dark:border-blue-800/30 shadow-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                   <span className="text-sm font-medium text-blue-700 dark:text-blue-300">已選 {selectedPages.size} 個頁面</span>
@@ -1087,8 +1087,9 @@ const DesignModuleDetail: React.FC = () => {
               )}
             </Button>
             {filteredTree.length > 0 && (
-              <button
-                className="group relative px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={selectedPages.size === filteredTree.length ? clearPageSelection : selectAllPages}
               >
                 {selectedPages.size === filteredTree.length ? (
@@ -1102,7 +1103,7 @@ const DesignModuleDetail: React.FC = () => {
                     全選
                   </>
                 )}
-              </button>
+              </Button>
             )}
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400">可用逗號分隔批次新增，例如：list,detail,create</div>
@@ -1116,16 +1117,18 @@ const DesignModuleDetail: React.FC = () => {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">資產清單</h2>
           <div className="flex items-center gap-2 flex-wrap">
-            <button 
-              className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-blue-200 dark:border-blue-600 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-700 dark:text-blue-300 hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-800/40 dark:hover:to-blue-700/40 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md" 
+            <Button
+              variant="info"
+              size="sm"
               onClick={() => setShowSlicePackageModal(true)}
               disabled={generating}
             >
-              <DocumentArrowDownIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+              <DocumentArrowDownIcon className="h-4 w-4" />
               生成切版說明包
-            </button>
-            <button
-              className="group relative px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={async () => {
                 if (!store.tauriAvailable) {
                   showError('Tauri 不可用')
@@ -1142,7 +1145,7 @@ const DesignModuleDetail: React.FC = () => {
               disabled={!store.tauriAvailable}
             >
               打開輸出資料夾
-            </button>
+            </Button>
             <Button
               variant="secondary"
               size="sm"
@@ -1471,27 +1474,29 @@ const DesignModuleDetail: React.FC = () => {
             </div>
             
             <div className="flex justify-end gap-3">
-              <button 
-                className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-400 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-500 dark:to-gray-600 text-gray-700 dark:text-gray-100 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-400 dark:hover:to-gray-500 hover:border-gray-400 dark:hover:border-gray-300 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+              <Button
+                variant="secondary"
+                size="md"
                 onClick={() => setUploadModalPage(null)}
               >
                 取消
-              </button>
-              <button 
-                className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-300 dark:border-blue-400 bg-gradient-to-r from-blue-300 to-blue-400 dark:from-blue-400 dark:to-blue-500 text-white hover:from-blue-400 hover:to-blue-500 dark:hover:from-blue-500 dark:hover:to-blue-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg" 
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
                 onClick={async () => {
                   await handleUpload()
                   setUploadModalPage(null)
-                }} 
+                }}
                 disabled={uploading || !store.tauriAvailable}
               >
                 {uploading ? (
                   <ArrowPathIcon className="h-5 w-5 animate-spin" />
                 ) : (
-                  <CloudArrowUpIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+                  <CloudArrowUpIcon className="h-5 w-5" />
                 )}
                 {uploading ? '上傳中...' : '選擇檔案並上傳'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

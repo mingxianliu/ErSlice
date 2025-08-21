@@ -22,14 +22,14 @@ const buttonVariants = cva(
         // 次要按鈕 - 純灰色
         secondary: "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-100 border border-gray-300 dark:border-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 hover:border-gray-400 dark:hover:border-gray-400 focus:ring-gray-200 dark:focus:ring-gray-300 shadow-sm hover:shadow-md",
         
-        // 成功按鈕 - 純綠色
-        success: "bg-green-600 dark:bg-green-500 text-white border border-green-600 dark:border-green-500 hover:bg-green-700 dark:hover:bg-green-600 hover:border-green-700 dark:hover:border-green-600 focus:ring-green-200 dark:focus:ring-green-300 shadow-sm hover:shadow-md",
+        // 成功按鈕 - 柔和的綠色
+        success: "bg-emerald-600 dark:bg-emerald-500 text-white border border-emerald-600 dark:border-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 hover:border-emerald-700 dark:hover:border-emerald-600 focus:ring-emerald-200 dark:focus:ring-emerald-300 shadow-sm hover:shadow-md",
         
-        // 警告按鈕 - 純琥珀色
-        warning: "bg-amber-600 dark:bg-amber-500 text-white border border-amber-600 dark:border-amber-500 hover:bg-amber-700 dark:hover:bg-amber-600 hover:border-amber-700 dark:hover:border-amber-600 focus:ring-amber-200 dark:focus:ring-amber-300 shadow-sm hover:shadow-md",
+        // 警告按鈕 - 柔和的琥珀色
+        warning: "bg-amber-500 dark:bg-amber-400 text-white border border-amber-500 dark:border-amber-400 hover:bg-amber-600 dark:hover:bg-amber-500 hover:border-amber-600 dark:hover:border-amber-500 focus:ring-amber-200 dark:focus:ring-amber-300 shadow-sm hover:shadow-md",
         
-        // 危險按鈕 - 純紅色
-        danger: "bg-red-600 dark:bg-red-500 text-white border border-red-600 dark:border-red-500 hover:bg-red-700 dark:hover:bg-red-600 hover:border-red-700 dark:hover:border-red-600 focus:ring-red-200 dark:focus:ring-red-300 shadow-sm hover:shadow-md",
+        // 危險按鈕 - 柔和的紅色
+        danger: "bg-rose-500 dark:bg-rose-400 text-white border border-rose-500 dark:border-rose-400 hover:bg-rose-600 dark:hover:bg-rose-500 hover:border-rose-600 dark:hover:border-rose-500 focus:ring-rose-200 dark:focus:ring-rose-300 shadow-sm hover:shadow-md",
         
         // 資訊按鈕 - 純藍灰色
         info: "bg-slate-600 dark:bg-slate-500 text-white border border-slate-600 dark:border-slate-500 hover:bg-slate-700 dark:hover:bg-slate-600 hover:border-slate-700 dark:hover:border-slate-600 focus:ring-slate-200 dark:focus:ring-slate-300 shadow-sm hover:shadow-md",

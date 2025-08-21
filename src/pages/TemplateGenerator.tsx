@@ -682,22 +682,24 @@ const TemplateGenerator: React.FC = () => {
                 </div>
               </div>
               <div className="flex gap-3 mt-6">
-                <button
+                <Button
+                  variant="secondary"
+                  size="md"
                   onClick={() => {
                     setShowCreateModal(false)
                     setFormData({ name: '', description: '', category: TemplateCategory.LAYOUT, complexity: TemplateComplexity.SIMPLE, tags: [], features: [] })
                   }}
-                  className="flex-1 group relative px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 text-gray-600 dark:text-gray-200 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-500 dark:hover:to-gray-600 hover:border-gray-300 dark:hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   取消
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
                   onClick={handleCreateTemplate}
                   disabled={!formData.name.trim()}
-                  className="flex-1 group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
                 >
                   建立
-                </button>
+                </Button>
               </div>
             </div>
           </div>

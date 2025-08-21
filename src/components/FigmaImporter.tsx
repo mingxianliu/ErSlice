@@ -293,36 +293,39 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
       </div>
 
       {/* 匯入方式選擇 */}
-      <div className="flex justify-center space-x-4">
-        <Button
-          onClick={() => setImportMethod('files')}
-          variant="secondary"
-          size="md"
-        >
-          <PhotoIcon className="h-5 w-5 inline mr-2" />
-          檔案上傳
-        </Button>
-        <Button
-          onClick={() => setImportMethod('zip')}
-          variant="secondary"
-          size="md"
-        >
-          <FolderIcon className="h-5 w-5 inline mr-2" />
-          ZIP 檔案
-        </Button>
-        <Button
-          onClick={() => setImportMethod('api')}
-          variant="secondary"
-          size="md"
-          disabled
-        >
-          <CloudArrowUpIcon className="h-5 w-5 inline mr-2" />
-          Figma API (即將推出)
-        </Button>
+      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">選擇匯入方式</h3>
+        <div className="flex justify-center space-x-4">
+          <Button
+            onClick={() => setImportMethod('files')}
+            variant="secondary"
+            size="md"
+          >
+            <PhotoIcon className="h-5 w-5 inline mr-2" />
+            檔案上傳
+          </Button>
+          <Button
+            onClick={() => setImportMethod('zip')}
+            variant="secondary"
+            size="md"
+          >
+            <FolderIcon className="h-5 w-5 inline mr-2" />
+            ZIP 檔案
+          </Button>
+          <Button
+            onClick={() => setImportMethod('api')}
+            variant="secondary"
+            size="md"
+            disabled
+          >
+            <CloudArrowUpIcon className="h-5 w-5 inline mr-2" />
+            Figma API (即將推出)
+          </Button>
+        </div>
       </div>
 
       {/* 高級分析設定 */}
-      <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 p-4 rounded-lg">
+      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <CpuChipIcon className="h-6 w-6 text-purple-600" />
@@ -425,16 +428,8 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
 
       {/* 智能分析結果 */}
       {analysisResult && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-6 rounded-lg space-y-4">
-          <div className="flex items-center space-x-3">
-            <ChartBarIcon className="h-6 w-6 text-green-600" />
-            <h3 className="text-lg font-semibold text-green-900 dark:text-green-200">
-              四維智能分析結果
-            </h3>
-            <span className="bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full text-xs font-medium">
-              信心度: {Math.round(analysisResult.confidence.overall * 100)}%
-            </span>
-          </div>
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-lg space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">分析結果</h3>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">

@@ -72,7 +72,7 @@ const SitemapAnalyticsModal: React.FC<SitemapAnalyticsModalProps> = ({ isOpen, o
           ) : analytics ? (
             <div className="space-y-8">
               {/* Project Overview */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">專案概覽</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center">
@@ -228,9 +228,11 @@ const SitemapAnalyticsModal: React.FC<SitemapAnalyticsModalProps> = ({ isOpen, o
           ) : (
             <div className="text-center py-12">
               <p className="text-gray-600 dark:text-gray-400">無法載入分析數據</p>
-              <Button 
-                className="group relative px-4 py-2 text-sm font-medium rounded-lg border border-blue-400 dark:border-blue-500 bg-gradient-to-r from-blue-400 to-blue-500 dark:from-blue-500 dark:to-blue-600 text-white hover:from-blue-500 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 hover:border-blue-500 dark:hover:border-blue-600 transition-all duration-200 shadow-md hover:shadow-lg mt-4" 
+              <Button
+                variant="primary"
+                size="md"
                 onClick={loadAnalytics}
+                className="mt-4"
               >
                 重新分析
               </Button>
