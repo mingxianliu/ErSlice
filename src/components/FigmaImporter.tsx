@@ -16,6 +16,7 @@ import {
   FigmaAnalysisController, 
   ComprehensiveAnalysisResult 
 } from '@/services/figmaAnalysisController'
+import FigmaImportWorkflow from '@/services/figmaImportWorkflow'
 import { Button } from '@/components/ui/Button'
 import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 
@@ -57,8 +58,9 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
   const [analysisResult, setAnalysisResult] = useState<ComprehensiveAnalysisResult>()
   const [enableAdvancedAnalysis, setEnableAdvancedAnalysis] = useState(true)
   
-  // 初始化分析控制器
+  // 初始化分析控制器和工作流程
   const analysisController = new FigmaAnalysisController()
+  const importWorkflow = new FigmaImportWorkflow()
 
   // 解析 Figma Frame 命名規則
   const parseFrameName = (name: string) => {
@@ -236,30 +238,54 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
   }
 
   // 完成匯入
-  const handleImportComplete = () => {
+  const handleImportComplete = async () => {
     if (previewAssets.length === 0) {
       showError('沒有可匯入的資產')
       return
     }
     
-    const modules = [...new Set(previewAssets.map(a => a.module))]
-    const pages: Record<string, string[]> = {}
-    
-    modules.forEach(module => {
-      pages[module] = [...new Set(
-        previewAssets
-          .filter(a => a.module === module)
-          .map(a => a.page)
-      )]
-    })
-    
-    onImportComplete({
-      projectName: projectName || 'Figma Import',
-      assets: previewAssets,
-      modules,
-      pages,
-      analysisResult
-    })
+    try {
+      setProcessing(true)
+      showInfo('正在執行完整的 Figma 匯入工作流程...')
+      
+      // 使用新的工作流程
+      const result = await importWorkflow.executeCompleteWorkflow(
+        previewAssets.map(a => a.file).filter(Boolean) as File[]
+      )
+      
+      if (result.success) {
+        showSuccess('Figma 匯入工作流程完成！')
+        console.log('生成的設計模組:', result.module)
+        console.log('生成的切版包:', result.slicePackage)
+        
+        // 轉換為舊的格式以保持相容性
+        const modules = [...new Set(previewAssets.map(a => a.module))]
+        const pages: Record<string, string[]> = {}
+        
+        modules.forEach(module => {
+          pages[module] = [...new Set(
+            previewAssets
+              .filter(a => a.module === module)
+              .map(a => a.page)
+          )]
+        })
+        
+        onImportComplete({
+          projectName: projectName || 'Figma Import',
+          assets: previewAssets,
+          modules,
+          pages,
+          analysisResult
+        })
+      } else {
+        showError('Figma 匯入工作流程失敗', result.message)
+      }
+      
+    } catch (error) {
+      showError('匯入失敗', error instanceof Error ? error.message : '未知錯誤')
+    } finally {
+      setProcessing(false)
+    }
   }
 
   // 獲取設備圖示
