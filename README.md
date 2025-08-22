@@ -1,4 +1,8 @@
-# ErSlice v1.0 - 前端切版說明包生成器
+# ErSlice (艾爾切易)
+
+![ErSlice Logo](assets/logos/ErSlice-艾爾切易.png)
+
+ErSlice (艾爾切易) v1.0 - 前端切版說明包生成器
 
 **設計資產管理** | **切版說明包生成** | **AI 自動切版** | **ErAI 生態整合**
 
@@ -6,9 +10,9 @@
 
 ## 🎯 ErSlice 核心定位
 
-**ErSlice = 前端切版說明包生成器 (基於 design-assets 模式)**
+**ErSlice (艾爾切易) = 前端切版說明包生成器 (基於 design-assets 模式)**
 
-ErSlice 是 ErAI 生態系統中的前端開發標準化工具，專注於：
+ErSlice (艾爾切易) 是 ErAI 生態系統中的前端開發標準化工具，專注於：
 - 📁 **設計資產管理**: 組織和管理前端模組的設計資源
 - **切版說明包生成**: 自動生成標準化的 HTML/CSS 模板
 - **AI 切版說明**: 為每個模組生成 AI 可依循的切版指南

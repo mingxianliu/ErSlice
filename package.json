@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "ErSlice - ErAI 家族的前端開發工具與組件庫系統，提供智能組件設計與開發流程管理",
+  "description": "ErSlice (艾爾切易) - ErAI 家族的前端開發工具與組件庫系統，提供智能組件設計與開發流程管理",
   "author": "ErAI <erai@erai.com>",
   "license": "MIT",
   "homepage": "https://github.com/erich/ErSlice",

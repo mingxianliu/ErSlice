@@ -18,7 +18,7 @@ export interface ErrorCategory {
   description: string
   severity: ErrorSeverity
   autoRecovery: boolean
-  recoveryStrategies: RecoveryStrategy[]
+  recoveryStrategies: string[] // 改為字符串數組
   preventionTips: string[]
 }
 

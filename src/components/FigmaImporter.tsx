@@ -11,7 +11,10 @@ import {
   DeviceTabletIcon,
   DevicePhoneMobileIcon,
   BoltIcon,
-  EyeIcon
+  EyeIcon,
+  ShieldCheckIcon,
+  ExclamationTriangleIcon,
+  CheckBadgeIcon
 } from '@heroicons/react/24/outline'
 import { 
   FigmaAnalysisController, 
@@ -25,6 +28,15 @@ import { WorkflowProgress } from '@/services/figmaImportWorkflow'
 import ResultPreview from '@/components/ui/ResultPreview'
 import ErrorRetryModal from '@/components/ui/ErrorRetryModal'
 import ConfirmDialog, { ConfirmType } from '@/components/ui/ConfirmDialog'
+
+// 新增的驗證和錯誤處理組件
+import ValidationResultPanel from '@/components/ui/ValidationResultPanel'
+import IntelligentErrorPanel from '@/components/ui/IntelligentErrorPanel'
+
+// 新增的驗證和錯誤處理服務
+import { fileValidationService, FileValidationResult } from '@/services/fileValidationService'
+import { intelligentErrorHandler, IntelligentErrorInfo } from '@/services/intelligentErrorHandler'
+import { analysisValidationService, AnalysisValidationResult } from '@/services/analysisValidationService'
 
 // Figma 資產介面
 interface FigmaAsset {
@@ -118,6 +130,15 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
   const [currentError, setCurrentError] = useState<Error | string>('')
   const [retryCount, setRetryCount] = useState(0)
   const [maxRetries] = useState(3)
+
+  // 新增的驗證和錯誤處理狀態
+  const [fileValidationResults, setFileValidationResults] = useState<Map<string, FileValidationResult>>(new Map())
+  const [analysisValidationResult, setAnalysisValidationResult] = useState<AnalysisValidationResult | null>(null)
+  const [intelligentErrorInfo, setIntelligentErrorInfo] = useState<IntelligentErrorInfo | null>(null)
+  const [showValidationPanel, setShowValidationPanel] = useState(false)
+  const [showErrorDetails, setShowErrorDetails] = useState(false)
+  const [validationProgress, setValidationProgress] = useState(0)
+  const [autoRecoveryEnabled, setAutoRecoveryEnabled] = useState(true)
   
   // 確認對話框狀態
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -242,10 +263,24 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
       
       showInfo(`正在處理 ${imageFiles.length} 個檔案...`)
       
+      // 新增：檔案驗證
+      const validationResults = await validateFiles(imageFiles)
+      const validFiles = imageFiles.filter((_, index) => validationResults[index].isValid)
+      
+      if (validFiles.length === 0) {
+        showError('所有檔案驗證失敗', '請檢查檔案格式和內容')
+        setProcessing(false)
+        return
+      }
+      
+      if (validFiles.length < imageFiles.length) {
+        showInfo(`${validFiles.length}/${imageFiles.length} 個檔案驗證通過`)
+      }
+      
       const assets: FigmaAsset[] = []
       
       // 處理圖片檔案
-      for (const file of imageFiles.filter(f => f.type.startsWith('image/'))) {
+      for (const file of validFiles.filter(f => f.type.startsWith('image/'))) {
         const parsed = parseFileName(file.name)
         const dimensions = await getImageDimensions(file)
         const imageUrl = URL.createObjectURL(file)
@@ -274,17 +309,99 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
       }
       
       // 執行高級分析（如果啟用）
-      if (enableAdvancedAnalysis && imageFiles.length > 0) {
-        await performAdvancedAnalysis(imageFiles)
+      if (enableAdvancedAnalysis && validFiles.length > 0) {
+        await performAdvancedAnalysis(validFiles)
       }
       
       showSuccess(`成功解析 ${assets.length} 個資產`)
       
     } catch (error) {
-      showError('檔案處理失敗', error instanceof Error ? error.message : '未知錯誤')
+      const errorMessage = error instanceof Error ? error.message : '未知錯誤'
+      showError('檔案處理失敗', errorMessage)
+      
+      // 新增：智能錯誤處理
+      try {
+        const intelligentError = await intelligentErrorHandler.handleErrorIntelligently(
+          error instanceof Error ? error : new Error(errorMessage),
+          { component: 'FigmaImporter', action: 'file_processing' }
+        )
+        setIntelligentErrorInfo(intelligentError)
+        
+        if (intelligentError.userActionRequired) {
+          setShowErrorDetails(true)
+        }
+      } catch (validationError) {
+        console.error('智能錯誤處理失敗:', validationError)
+      }
     } finally {
       setProcessing(false)
     }
+  }
+
+  // 新增：檔案驗證函數
+  const validateFiles = async (files: File[]): Promise<FileValidationResult[]> => {
+    const results: FileValidationResult[] = []
+    setValidationProgress(0)
+    
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const file = files[i]
+        const result = await fileValidationService.validateFile(file, {
+          maxSize: 50 * 1024 * 1024, // 50MB
+          enableSecurityScan: true,
+          enableIntegrityCheck: true,
+          enableCompression: true
+        })
+        
+        results.push(result)
+        
+        // 更新驗證進度
+        const progress = ((i + 1) / files.length) * 100
+        setValidationProgress(progress)
+        
+        // 如果檔案驗證失敗，顯示警告
+        if (!result.isValid) {
+          console.warn(`檔案驗證失敗: ${file.name}`, result.errors)
+        }
+        
+        // 如果發現安全威脅，顯示警告
+        if (result.security.threats.length > 0) {
+          console.warn(`安全威脅檢測: ${file.name}`, result.security.threats)
+        }
+        
+      } catch (error) {
+        console.error(`檔案驗證錯誤: ${files[i].name}`, error)
+        // 創建失敗的驗證結果
+        results.push({
+          isValid: false,
+          errors: [{
+            code: 'VALIDATION_ERROR',
+            message: `檔案驗證過程中發生錯誤: ${error instanceof Error ? error.message : '未知錯誤'}`,
+            severity: 'error',
+            field: 'general'
+          }],
+          warnings: [],
+          metadata: {
+            name: files[i].name,
+            size: files[i].size,
+            type: files[i].type,
+            lastModified: new Date(files[i].lastModified),
+            format: 'unknown'
+          },
+          security: { isSafe: false, threats: [], scanTime: new Date(), scanVersion: '1.0.0' },
+          integrity: { checksum: '', algorithm: 'SHA256', isValid: false, corruptionDetected: true, repairPossible: false }
+        })
+      }
+    }
+    
+    // 保存驗證結果
+    const validationMap = new Map<string, FileValidationResult>()
+    files.forEach((file, index) => {
+      validationMap.set(file.name, results[index])
+    })
+    setFileValidationResults(validationMap)
+    
+    return results
   }
   
   // 執行高級分析
@@ -296,10 +413,42 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
       const result = await analysisController.analyzeComplete(files)
       setAnalysisResult(result)
       
-      showSuccess(`分析完成！檢測到 ${result.overview.mainModules.length} 個模組，${result.overview.primaryDevices.length} 種設備`)
+      // 新增：分析結果驗證
+      try {
+        const validationResult = await analysisValidationService.validateAnalysisResult(result)
+        setAnalysisValidationResult(validationResult)
+        
+        if (validationResult.isValid) {
+          showSuccess(`分析完成！檢測到 ${result.overview.mainModules.length} 個模組，${result.overview.primaryDevices.length} 種設備`)
+          console.log('分析結果驗證通過，質量分數:', validationResult.score)
+        } else {
+          showError('分析結果驗證失敗', `質量分數: ${validationResult.score}/100`)
+          console.warn('分析結果驗證失敗:', validationResult.errors)
+          console.log('改進建議:', validationResult.recommendations)
+        }
+      } catch (validationError) {
+        console.error('分析結果驗證失敗:', validationError)
+        showError('分析結果驗證失敗', '但基礎分析已完成')
+      }
       
     } catch (error) {
       console.warn('高級分析失敗:', error)
+      
+      // 新增：智能錯誤處理
+      try {
+        const intelligentError = await intelligentErrorHandler.handleErrorIntelligently(
+          error instanceof Error ? error : new Error('高級分析失敗'),
+          { component: 'FigmaImporter', action: 'advanced_analysis' }
+        )
+        setIntelligentErrorInfo(intelligentError)
+        
+        if (intelligentError.userActionRequired) {
+          setShowErrorDetails(true)
+        }
+      } catch (validationError) {
+        console.error('智能錯誤處理失敗:', validationError)
+      }
+      
       showError('高級分析失敗', '基礎匯入功能仍然可用')
     } finally {
       setAnalyzing(false)
@@ -745,6 +894,41 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
 
       {/* 操作按鈕 */}
       <div className="flex justify-end space-x-3">
+        {/* 新增：驗證結果按鈕 */}
+        {fileValidationResults.size > 0 && (
+          <Button
+            onClick={() => setShowValidationPanel(true)}
+            variant="secondary"
+            size="md"
+          >
+            <ShieldCheckIcon className="h-5 w-5 mr-2" />
+            驗證結果
+            <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+              {Array.from(fileValidationResults.values()).filter(r => r.isValid).length}/{fileValidationResults.size}
+            </span>
+          </Button>
+        )}
+
+        {/* 新增：錯誤詳情按鈕 */}
+        {intelligentErrorInfo && (
+          <Button
+            onClick={() => setShowErrorDetails(true)}
+            variant="secondary"
+            size="md"
+          >
+            <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
+            錯誤詳情
+            <span className={`ml-2 text-xs px-2 py-1 rounded-full ${
+              intelligentErrorInfo.severity === 'critical' ? 'bg-red-100 text-red-800' :
+              intelligentErrorInfo.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+              intelligentErrorInfo.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-blue-100 text-blue-800'
+            }`}>
+              {intelligentErrorInfo.severity}
+            </span>
+          </Button>
+        )}
+
         <Button
           onClick={onCancel}
           variant="secondary"
@@ -811,6 +995,48 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
           onConfirm={() => handleConfirmResult(true)}
           onCancel={() => handleConfirmResult(false)}
           onClose={() => setShowConfirmDialog(false)}
+        />
+      )}
+
+      {/* 新增：驗證結果面板 */}
+      {showValidationPanel && (
+        <ValidationResultPanel
+          fileValidationResults={fileValidationResults}
+          analysisValidationResult={analysisValidationResult}
+          onClose={() => setShowValidationPanel(false)}
+        />
+      )}
+
+      {/* 新增：智能錯誤詳情面板 */}
+      {showErrorDetails && intelligentErrorInfo && (
+        <IntelligentErrorPanel
+          errorInfo={intelligentErrorInfo}
+          onClose={() => setShowErrorDetails(false)}
+          onRetry={() => {
+            setShowErrorDetails(false)
+            // 這裡可以實現重試邏輯
+            if (intelligentErrorInfo.recoverable && intelligentErrorInfo.retryCount < intelligentErrorInfo.maxRetries) {
+              // 根據錯誤類型執行不同的重試邏輯
+              if (intelligentErrorInfo.type === 'file') {
+                // 重新處理檔案
+                if (previewAssets.length > 0) {
+                  const files = previewAssets.map(a => a.file).filter(Boolean) as File[]
+                  handleFiles(files)
+                }
+              } else if (intelligentErrorInfo.type === 'network') {
+                // 重新執行分析
+                if (previewAssets.length > 0) {
+                  const files = previewAssets.map(a => a.file).filter(Boolean) as File[]
+                  performAdvancedAnalysis(files)
+                }
+              }
+            }
+          }}
+          onManualRecovery={() => {
+            setShowErrorDetails(false)
+            // 這裡可以實現手動修復邏輯
+            showInfo('請按照錯誤詳情中的步驟進行手動修復')
+          }}
         />
       )}
     </div>
