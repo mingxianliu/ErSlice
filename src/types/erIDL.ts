@@ -9,7 +9,7 @@
  * - 框架無關：支援多種技術棧
  */
 
-import { ErComponent, Framework } from './erComponent';
+import { Framework } from './erComponent';
 
 // ===== 基礎類型定義 =====
 
@@ -828,13 +828,4 @@ export interface PerformanceBudget {
   error: number;
 }
 
-// ===== 導出主要類型 =====
-export type {
-  ScreenSize,
-  InteractionType,
-  AnimationType,
-  DataType,
-  HTTPMethod,
-  DatabaseType,
-  DeploymentTarget
-};
+// 移除重複的導出聲明，因為這些類型已經在文件開頭導出

@@ -16,6 +16,20 @@ function makeState(partial: Partial<Record<string, unknown>> = {}, modules: Desi
     page: 1,
     pageSize: 9,
     viewArchived: false,
+    projectFilter: 'all',
+    // Mock required functions
+    init: async () => {},
+    refresh: async () => {},
+    addLocalModule: () => {},
+    updateLocalStatuses: () => {},
+    removeLocal: () => {},
+    setViewArchived: () => {},
+    setQuery: () => {},
+    setStatus: () => {},
+    setSort: () => {},
+    setPage: () => {},
+    setPageSize: () => {},
+    setProjectFilter: () => {},
     ...partial,
   }
 }

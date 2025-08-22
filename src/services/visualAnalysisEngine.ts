@@ -1239,7 +1239,7 @@ export class VisualAnalysisEngine {
   /**
    * 檢測交互模式
    */
-  private detectInteractionPatterns(components: ComponentAnalysis[]): DesignPattern[] {
+  private detectInteractionPatterns(_components: ComponentAnalysis[]): DesignPattern[] {
     // 簡化實現
     return [];
   }
@@ -1294,7 +1294,7 @@ export class VisualAnalysisEngine {
   /**
    * 分析元素關係
    */
-  private analyzeElementRelationships(components: ComponentAnalysis[]): ElementRelationship[] {
+  private analyzeElementRelationships(_components: ComponentAnalysis[]): ElementRelationship[] {
     // 簡化實現
     return [];
   }
@@ -1302,7 +1302,7 @@ export class VisualAnalysisEngine {
   /**
    * 分析顏色對比度
    */
-  private analyzeColorContrast(imageData: ImageData, components: ComponentAnalysis[]): ContrastAnalysis {
+  private analyzeColorContrast(_imageData: ImageData, components: ComponentAnalysis[]): ContrastAnalysis {
     const ratios: ContrastRatio[] = [];
     
     components.forEach(component => {
@@ -1547,8 +1547,8 @@ export class VisualAnalysisEngine {
   private identifyAccessibilityIssues(
     colorContrast: ContrastAnalysis,
     textReadability: ReadabilityAnalysis,
-    focusOrder: FocusOrderAnalysis,
-    semanticStructure: SemanticStructureAnalysis
+    _focusOrder: FocusOrderAnalysis,
+    _semanticStructure: SemanticStructureAnalysis
   ): AccessibilityIssue[] {
     const issues: AccessibilityIssue[] = [];
     
@@ -1621,7 +1621,7 @@ export class VisualAnalysisEngine {
   /**
    * 分析可縮放性
    */
-  private analyzeScalability(components: ComponentAnalysis[]): ScalabilityAnalysis {
+  private analyzeScalability(_components: ComponentAnalysis[]): ScalabilityAnalysis {
     return {
       textScaling: true,
       imageScaling: true,

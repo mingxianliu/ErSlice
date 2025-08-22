@@ -10,7 +10,8 @@ import {
   ComputerDesktopIcon,
   DeviceTabletIcon,
   DevicePhoneMobileIcon,
-  BoltIcon
+  BoltIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline'
 import { 
   FigmaAnalysisController, 
@@ -19,6 +20,11 @@ import {
 import FigmaImportWorkflow from '@/services/figmaImportWorkflow'
 import { Button } from '@/components/ui/Button'
 import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
+import ProgressBar, { ProgressStage } from '@/components/ui/ProgressBar'
+import { WorkflowProgress } from '@/services/figmaImportWorkflow'
+import ResultPreview from '@/components/ui/ResultPreview'
+import ErrorRetryModal from '@/components/ui/ErrorRetryModal'
+import ConfirmDialog, { ConfirmType } from '@/components/ui/ConfirmDialog'
 
 // Figma 資產介面
 interface FigmaAsset {
@@ -58,9 +64,100 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
   const [analysisResult, setAnalysisResult] = useState<ComprehensiveAnalysisResult>()
   const [enableAdvancedAnalysis, setEnableAdvancedAnalysis] = useState(true)
   
+  // 進度顯示狀態
+  const [workflowProgress, setWorkflowProgress] = useState<WorkflowProgress | null>(null)
+  const [progressStages, setProgressStages] = useState<ProgressStage[]>([
+    {
+      id: 'file-processing',
+      name: '檔案處理',
+      status: 'pending',
+      progress: 0,
+      message: '等待開始...'
+    },
+    {
+      id: 'analysis',
+      name: '智能分析',
+      status: 'pending',
+      progress: 0,
+      message: '等待開始...'
+    },
+    {
+      id: 'structure-parsing',
+      name: '結構解析',
+      status: 'pending',
+      progress: 0,
+      message: '等待開始...'
+    },
+    {
+      id: 'module-creation',
+      name: '模組建立',
+      status: 'pending',
+      progress: 0,
+      message: '等待開始...'
+    },
+    {
+      id: 'package-generation',
+      name: '切版包生成',
+      status: 'pending',
+      progress: 0,
+      message: '等待開始...'
+    }
+  ])
+  
+  // 結果預覽狀態
+  const [showResultPreview, setShowResultPreview] = useState(false)
+  const [workflowResult, setWorkflowResult] = useState<{
+    module: any
+    slicePackage: any
+    success: boolean
+    message: string
+  } | null>(null)
+  
+  // 錯誤重試狀態
+  const [showErrorRetry, setShowErrorRetry] = useState(false)
+  const [currentError, setCurrentError] = useState<Error | string>('')
+  const [retryCount, setRetryCount] = useState(0)
+  const [maxRetries] = useState(3)
+  
+  // 確認對話框狀態
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null)
+  const [confirmConfig, setConfirmConfig] = useState<{
+    title: string
+    message: string
+    type: ConfirmType
+    details?: string
+  } | null>(null)
+  
   // 初始化分析控制器和工作流程
   const analysisController = new FigmaAnalysisController()
   const importWorkflow = new FigmaImportWorkflow()
+  
+  // 設置進度回調
+  importWorkflow.setProgressCallback((progress: WorkflowProgress) => {
+    setWorkflowProgress(progress)
+    
+    // 更新對應階段的進度和狀態
+    setProgressStages(prev => prev.map(stage => {
+      if (stage.id === progress.stage) {
+        return {
+          ...stage,
+          status: progress.progress === 100 ? 'completed' : 'in-progress',
+          progress: progress.progress,
+          message: progress.message,
+          details: progress.details
+        }
+      }
+      // 如果當前階段完成，將下一個階段設為進行中
+      if (stage.id === progress.stage && progress.progress === 100) {
+        const nextStageIndex = prev.findIndex(s => s.id === progress.stage) + 1
+        if (nextStageIndex < prev.length) {
+          prev[nextStageIndex].status = 'in-progress'
+        }
+      }
+      return stage
+    }))
+  })
 
   // 解析 Figma Frame 命名規則
   const parseFrameName = (name: string) => {
@@ -258,6 +355,9 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
         console.log('生成的設計模組:', result.module)
         console.log('生成的切版包:', result.slicePackage)
         
+        // 保存結果用於預覽
+        setWorkflowResult(result)
+        
         // 轉換為舊的格式以保持相容性
         const modules = [...new Set(previewAssets.map(a => a.module))]
         const pages: Record<string, string[]> = {}
@@ -278,13 +378,64 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
           analysisResult
         })
       } else {
-        showError('Figma 匯入工作流程失敗', result.message)
+        // 處理失敗情況
+        setCurrentError(result.message)
+        setShowErrorRetry(true)
       }
       
     } catch (error) {
-      showError('匯入失敗', error instanceof Error ? error.message : '未知錯誤')
+      // 處理錯誤情況
+      const errorMessage = error instanceof Error ? error.message : '未知錯誤'
+      setCurrentError(errorMessage)
+      setShowErrorRetry(true)
     } finally {
       setProcessing(false)
+    }
+  }
+  
+  // 重試匯入
+  const handleRetryImport = async () => {
+    setRetryCount(prev => prev + 1)
+    setShowErrorRetry(false)
+    
+    try {
+      await handleImportComplete()
+    } catch (error) {
+      if (retryCount < maxRetries) {
+        setCurrentError(error instanceof Error ? error.message : '未知錯誤')
+        setShowErrorRetry(true)
+      } else {
+        showError('重試次數已達上限', '請檢查檔案格式或聯繫技術支援')
+      }
+    }
+  }
+  
+  // 跳過當前步驟
+  const handleSkipStep = () => {
+    setShowErrorRetry(false)
+    showInfo('已跳過當前步驟', '繼續執行後續流程')
+    // TODO: 實現跳過邏輯
+  }
+  
+  // 顯示確認對話框
+  const showConfirm = (
+    title: string, 
+    message: string, 
+    type: ConfirmType = 'info',
+    details?: string
+  ) => {
+    return new Promise<boolean>((resolve) => {
+      setConfirmConfig({ title, message, type, details })
+      setConfirmAction(() => () => resolve(true))
+      setShowConfirmDialog(true)
+    })
+  }
+  
+  // 處理確認結果
+  const handleConfirmResult = (confirmed: boolean) => {
+    setShowConfirmDialog(false)
+    if (confirmed && confirmAction) {
+      confirmAction()
     }
   }
 
@@ -452,6 +603,20 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
         </div>
       )}
 
+      {/* 進度顯示 */}
+      {workflowProgress && (
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">工作流程進度</h3>
+          <ProgressBar
+            stages={progressStages}
+            currentStage={workflowProgress.stage}
+            overallProgress={workflowProgress.progress}
+            isComplete={workflowProgress.progress === 100}
+            hasError={false}
+          />
+        </div>
+      )}
+
       {/* 智能分析結果 */}
       {analysisResult && (
         <div className="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-lg space-y-4">
@@ -587,6 +752,16 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
         >
           取消
         </Button>
+        {workflowResult && workflowResult.success && (
+          <Button
+            onClick={() => setShowResultPreview(true)}
+            variant="secondary"
+            size="md"
+          >
+            <EyeIcon className="h-5 w-5 mr-2" />
+            預覽結果
+          </Button>
+        )}
         {previewAssets.length > 0 && (
           <Button
             onClick={handleImportComplete}
@@ -604,6 +779,40 @@ const FigmaImporter: React.FC<Props> = ({ onImportComplete, onCancel }) => {
           </Button>
         )}
       </div>
+      
+      {/* 結果預覽模態框 */}
+      {showResultPreview && workflowResult && (
+        <ResultPreview
+          module={workflowResult.module}
+          slicePackage={workflowResult.slicePackage}
+          onClose={() => setShowResultPreview(false)}
+        />
+      )}
+      
+      {/* 錯誤重試模態框 */}
+      <ErrorRetryModal
+        isOpen={showErrorRetry}
+        error={currentError}
+        onRetry={handleRetryImport}
+        onClose={() => setShowErrorRetry(false)}
+        onSkip={handleSkipStep}
+        retryCount={retryCount}
+        maxRetries={maxRetries}
+      />
+      
+      {/* 確認對話框 */}
+      {showConfirmDialog && confirmConfig && (
+        <ConfirmDialog
+          isOpen={showConfirmDialog}
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          type={confirmConfig.type}
+          details={confirmConfig.details}
+          onConfirm={() => handleConfirmResult(true)}
+          onCancel={() => handleConfirmResult(false)}
+          onClose={() => setShowConfirmDialog(false)}
+        />
+      )}
     </div>
   )
 }

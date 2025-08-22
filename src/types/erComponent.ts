@@ -409,31 +409,4 @@ export interface DesignPattern {
   examples: string[];
 }
 
-// ===== 導出主要類型 =====
-export type {
-  Framework,
-  ComponentRole,
-  DeviceType,
-  StateType,
-  LayoutProperties,
-  StylingProperties,
-  TypographyProperties,
-  EffectProperties,
-  DesignTokenReference,
-  ResponsiveBehavior,
-  InteractionPattern,
-  AnimationSpec,
-  A11ySpecification,
-  DataBindingSpec,
-  FrameworkImplementation,
-  ComponentAPI,
-  StateManagementStrategy,
-  PerformanceOptimization,
-  TestingSpecification,
-  ComponentDocumentation,
-  DesignerNote,
-  DeveloperNote,
-  ChangeHistory,
-  ErComponentLibrary,
-  DesignPattern
-};
+// 移除重複的導出聲明，因為這些類型已經在文件開頭導出

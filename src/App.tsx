@@ -18,6 +18,7 @@ import FigmaExports from './pages/FigmaExports'
 import SlicePackages from './pages/SlicePackages'
 import DesignModuleDetail from './pages/DesignModuleDetail'
 import Settings from './pages/Settings'
+import SketchGenerator from './pages/SketchGenerator'
 
 // ErSlice 主應用組件 - 前端切版說明包生成器
 function App() {
@@ -42,6 +43,7 @@ function App() {
             <Route path="/library/ai-specs" element={<AISpecGenerator />} />
             <Route path="/library/figma-exports" element={<FigmaExports />} />
             <Route path="/library/slice-packages" element={<SlicePackages />} />
+            <Route path="/library/sketch-generator" element={<SketchGenerator />} />
             
             {/* 其他頁面 */}
             <Route path="/dashboard" element={<Dashboard />} />

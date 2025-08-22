@@ -6,7 +6,17 @@
 import { FigmaAnalysisController, ComprehensiveAnalysisResult } from './figmaAnalysisController'
 import { FigmaFileProcessor, FigmaImportResult } from './figmaFileProcessor'
 import { FigmaAssetParser, ParsedAssetInfo } from './figmaParser'
-import { invoke } from '@tauri-apps/api/tauri'
+// 動態導入 Tauri API 以支援瀏覽器環境
+let invoke: any = null
+
+try {
+  // 嘗試導入 Tauri API
+  import('@tauri-apps/api/tauri').then(({ invoke: tauriInvoke }) => {
+    invoke = tauriInvoke
+  })
+} catch (error) {
+  console.log('Tauri API 不可用，運行在瀏覽器環境')
+}
 
 export interface FolderStructure {
   name: string
@@ -57,15 +67,48 @@ export interface Documentation {
   developmentGuide: string
 }
 
+export interface WorkflowProgress {
+  stage: 'file-processing' | 'analysis' | 'structure-parsing' | 'module-creation' | 'package-generation'
+  progress: number // 0-100
+  message: string
+  details?: any
+}
+
+export interface WorkflowProgressCallback {
+  (progress: WorkflowProgress): void
+}
+
 export class FigmaImportWorkflow {
   private analysisController: FigmaAnalysisController
   private fileProcessor: FigmaFileProcessor
   private assetParser: FigmaAssetParser
+  private progressCallback?: WorkflowProgressCallback
 
   constructor() {
     this.analysisController = new FigmaAnalysisController()
     this.fileProcessor = new FigmaFileProcessor()
     this.assetParser = new FigmaAssetParser()
+  }
+
+  /**
+   * 設置進度回調函數
+   */
+  setProgressCallback(callback: WorkflowProgressCallback): void {
+    this.progressCallback = callback
+  }
+
+  /**
+   * 更新進度
+   */
+  private updateProgress(stage: WorkflowProgress['stage'], progress: number, message: string, details?: any): void {
+    if (this.progressCallback) {
+      this.progressCallback({
+        stage,
+        progress,
+        message,
+        details
+      })
+    }
   }
 
   /**
@@ -79,19 +122,31 @@ export class FigmaImportWorkflow {
   }> {
     try {
       console.log('🚀 開始執行完整的 Figma 匯入工作流程...')
+      this.updateProgress('file-processing', 0, '開始處理檔案...', { totalFiles: files.length })
 
       // 步驟 1: 處理檔案並分析
+      this.updateProgress('file-processing', 20, '正在處理檔案...', { processedFiles: 0, totalFiles: files.length })
       const importResult = await this.fileProcessor.processFiles(files)
+      this.updateProgress('file-processing', 40, '檔案處理完成，開始分析...', { processedFiles: files.length, totalFiles: files.length })
+      
+      this.updateProgress('analysis', 50, '正在執行智能分析...', { stage: '四維分析' })
       const analysis = await this.analysisController.analyzeComplete(files)
+      this.updateProgress('analysis', 70, '智能分析完成', { analysisResult: analysis })
 
       // 步驟 2: 解析資料夾結構
+      this.updateProgress('structure-parsing', 75, '正在解析資料夾結構...', { stage: '結構分析' })
       const folderStructure = this.parseFolderStructure(files, importResult)
+      this.updateProgress('structure-parsing', 80, '資料夾結構解析完成', { structure: folderStructure })
 
       // 步驟 3: 建立設計模組
+      this.updateProgress('module-creation', 85, '正在建立設計模組...', { stage: '模組建立' })
       const designModule = await this.createDesignModule(folderStructure, analysis)
+      this.updateProgress('module-creation', 90, '設計模組建立完成', { module: designModule })
 
       // 步驟 4: 生成切版包
+      this.updateProgress('package-generation', 95, '正在生成切版包...', { stage: '切版包生成' })
       const slicePackage = await this.generateSlicePackage(designModule, folderStructure)
+      this.updateProgress('package-generation', 100, '切版包生成完成', { package: slicePackage })
 
       console.log('✅ Figma 匯入工作流程完成！')
 
@@ -104,6 +159,9 @@ export class FigmaImportWorkflow {
 
     } catch (error) {
       console.error('❌ Figma 匯入工作流程失敗:', error)
+      // 更新失敗進度
+      this.updateProgress('package-generation', 0, '工作流程執行失敗', { error: error instanceof Error ? error.message : '未知錯誤' })
+      
       return {
         module: {} as DesignModuleTemplate,
         slicePackage: {} as SlicePackage,
@@ -435,20 +493,25 @@ export class FigmaImportWorkflow {
    */
   private async saveDesignModuleToDatabase(module: DesignModuleTemplate): Promise<void> {
     try {
-      await invoke('create_design_module_in_db', {
-        module: {
-          id: module.id,
-          name: module.name,
-          description: module.description,
-          status: 'active',
-          asset_count: module.assets.length,
-          project_slugs: JSON.stringify(['figma-import']),
-          primary_project: 'figma-import',
-          created_from: 'figma-import',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      })
+      if (invoke) {
+        await invoke('create_design_module_in_db', {
+          module: {
+            id: module.id,
+            name: module.name,
+            description: module.description,
+            status: 'active',
+            asset_count: module.assets.length,
+            project_slugs: JSON.stringify(['figma-import']),
+            primary_project: 'figma-import',
+            created_from: 'figma-import',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        })
+      } else {
+        console.log('Tauri API 不可用，使用本地存儲')
+        throw new Error('Tauri API 不可用')
+      }
     } catch (error) {
       throw new Error(`保存到資料庫失敗: ${error}`)
     }

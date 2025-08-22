@@ -75,6 +75,13 @@ const navigation: NavItem[] = [
         icon: ArchiveBoxIcon,
         description: '切版包管理與編輯',
         enabled: true,
+      },
+      {
+        name: 'Sketch 生成器',
+        href: '/library/sketch-generator',
+        icon: DocumentTextIcon,
+        description: '生成 Sketch 檔案用於 Figma 匯入',
+        enabled: true,
       }
     ]
   },

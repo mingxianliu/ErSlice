@@ -14,6 +14,14 @@ try {
   console.log('Tauri API 不可用，運行在瀏覽器環境')
 }
 
+// 類型安全的 invoke 包裝函數
+function typedInvoke<T>(command: string, args?: any): Promise<T> {
+  if (!invoke) {
+    throw new Error('Tauri API 不可用')
+  }
+  return invoke(command, args)
+}
+
 // 檢查是否在 Tauri 環境中
 export const isTauriEnvironment = () => {
   return typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined
@@ -43,7 +51,7 @@ export interface AssetList {
 // 列出資產
 export async function listAssets(assetPath: string): Promise<AssetList> {
   try {
-    const result = await invoke<AssetList>('list_assets', { assetPath })
+    const result = await typedInvoke<AssetList>('list_assets', { assetPath })
     return result
   } catch (error) {
     const ersliceError = handleTauriError(error)
@@ -58,7 +66,7 @@ export async function deleteDesignAsset(
   fileName: string
 ): Promise<string> {
   try {
-    return await invoke<string>('delete_design_asset', { assetPath, assetType, fileName })
+    return await typedInvoke<string>('delete_design_asset', { assetPath, assetType, fileName })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -68,7 +76,7 @@ export async function deleteDesignAsset(
 // 封存模組
 export async function archiveDesignModule(moduleName: string): Promise<string> {
   try {
-    return await invoke<string>('archive_design_module', { moduleName })
+    return await typedInvoke<string>('archive_design_module', { moduleName })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -78,7 +86,7 @@ export async function archiveDesignModule(moduleName: string): Promise<string> {
 // 刪除模組
 export async function deleteDesignModule(moduleName: string): Promise<string> {
   try {
-    return await invoke<string>('delete_design_module', { moduleName })
+    return await typedInvoke<string>('delete_design_module', { moduleName })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -88,7 +96,7 @@ export async function deleteDesignModule(moduleName: string): Promise<string> {
 // 還原封存模組
 export async function unarchiveDesignModule(moduleName: string): Promise<string> {
   try {
-    return await invoke<string>('unarchive_design_module', { moduleName })
+    return await typedInvoke<string>('unarchive_design_module', { moduleName })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -101,7 +109,7 @@ export async function createDesignModule(
   description: string
 ): Promise<DesignModule> {
   try {
-    const result = await invoke<DesignModule>('create_design_module', {
+    const result = await typedInvoke<DesignModule>('create_design_module', {
       name,
       description
     })
@@ -115,7 +123,7 @@ export async function createDesignModule(
 // 獲取設計模組列表
 export async function getDesignModules(): Promise<DesignModule[]> {
   try {
-    const result = await invoke<DesignModule[]>('get_design_modules')
+    const result = await typedInvoke<DesignModule[]>('get_design_modules')
     return result
   } catch (error) {
     const ersliceError = handleTauriError(error)
@@ -126,7 +134,7 @@ export async function getDesignModules(): Promise<DesignModule[]> {
 // 獲取封存的設計模組列表
 export async function getArchivedDesignModules(): Promise<DesignModule[]> {
   try {
-    const result = await invoke<DesignModule[]>('get_archived_design_modules')
+    const result = await typedInvoke<DesignModule[]>('get_archived_design_modules')
     return result
   } catch (error) {
     const ersliceError = handleTauriError(error)
@@ -141,7 +149,7 @@ export async function uploadDesignAsset(
   filePath: string
 ): Promise<string> {
   try {
-    const result = await invoke<string>('upload_design_asset', {
+    const result = await typedInvoke<string>('upload_design_asset', {
       assetPath,
       assetType,
       filePath
@@ -163,7 +171,7 @@ export async function generateSlicePackage(
   }
 ): Promise<string> {
   try {
-    const result = await invoke<string>('generate_slice_package', {
+    const result = await typedInvoke<string>('generate_slice_package', {
       moduleName,
       includeHtml: options.includeHtml,
       includeCss: options.includeCss,
@@ -192,7 +200,7 @@ export async function generateAllSlicePackages(options: {
   overwriteStrategy?: OverwriteStrategy
 }): Promise<BulkGenerationResult> {
   try {
-    const result = await invoke<BulkGenerationResult>('generate_all_slice_packages', {
+    const result = await typedInvoke<BulkGenerationResult>('generate_all_slice_packages', {
       includeHtml: options.includeHtml,
       includeCss: options.includeCss,
       includeResponsive: options.includeResponsive,
@@ -213,7 +221,7 @@ export async function generateSelectedSlicePackages(params: {
   overwriteStrategy?: OverwriteStrategy
 }): Promise<BulkGenerationResult> {
   try {
-    const result = await invoke<BulkGenerationResult>('generate_selected_slice_packages', {
+    const result = await typedInvoke<BulkGenerationResult>('generate_selected_slice_packages', {
       modules: params.modules,
       includeHtml: params.includeHtml,
       includeCss: params.includeCss,
@@ -306,7 +314,7 @@ export interface MermaidResult {
 
 export async function generateProjectMermaid(): Promise<MermaidResult> {
   try {
-    return await invoke<MermaidResult>('generate_project_mermaid')
+    return await typedInvoke<MermaidResult>('generate_project_mermaid')
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -315,7 +323,7 @@ export async function generateProjectMermaid(): Promise<MermaidResult> {
 
 export async function generateProjectMermaidHtml(): Promise<string> {
   try {
-    return await invoke<string>('generate_project_mermaid_html')
+    return await typedInvoke<string>('generate_project_mermaid_html')
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -324,7 +332,7 @@ export async function generateProjectMermaidHtml(): Promise<string> {
 
 export async function generateModuleMermaidHtml(module: string): Promise<string> {
   try {
-    return await invoke<string>('generate_module_mermaid_html', { module })
+    return await typedInvoke<string>('generate_module_mermaid_html', { module })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -333,7 +341,7 @@ export async function generateModuleMermaidHtml(module: string): Promise<string>
 
 export async function generateModuleCrudMermaidHtml(module: string): Promise<string> {
   try {
-    return await invoke<string>('generate_module_crud_mermaid_html', { module })
+    return await typedInvoke<string>('generate_module_crud_mermaid_html', { module })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -342,7 +350,7 @@ export async function generateModuleCrudMermaidHtml(module: string): Promise<str
 
 export async function generatePageMermaidHtml(module: string, page: string): Promise<string> {
   try {
-    return await invoke<string>('generate_page_mermaid_html', { module, page })
+    return await typedInvoke<string>('generate_page_mermaid_html', { module, page })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -361,7 +369,7 @@ export async function generateUnifiedSlicePackage(params: {
   makeZip?: boolean
 }): Promise<UnifiedPackageResult> {
   try {
-    const res = await invoke<any>('generate_unified_slice_package', {
+    const res = await typedInvoke<any>('generate_unified_slice_package', {
       externalDesignAssetsRoot: params.externalDesignAssetsRoot,
       aiDocFrontendInstructions: params.aiDocFrontendInstructions,
       aiDocUiFriendly: params.aiDocUiFriendly,
@@ -400,7 +408,7 @@ export interface TauriProjectConfig {
 
 export async function getDefaultProject(): Promise<TauriProjectConfig> {
   try {
-    return await invoke<TauriProjectConfig>('get_or_init_default_project')
+    return await typedInvoke<TauriProjectConfig>('get_or_init_default_project')
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -409,7 +417,7 @@ export async function getDefaultProject(): Promise<TauriProjectConfig> {
 
 export async function updateDefaultProject(cfg: TauriProjectConfig): Promise<TauriProjectConfig> {
   try {
-    return await invoke<TauriProjectConfig>('update_default_project', { config: cfg })
+    return await typedInvoke<TauriProjectConfig>('update_default_project', { config: cfg })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -423,7 +431,7 @@ export interface PageNode { slug: string; path: string; title?: string; status?:
 
 export async function getModulePages(moduleName: string): Promise<PageInfo[]> {
   try {
-    return await invoke<PageInfo[]>('get_module_pages', { moduleName })
+    return await typedInvoke<PageInfo[]>('get_module_pages', { moduleName })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -432,7 +440,7 @@ export async function getModulePages(moduleName: string): Promise<PageInfo[]> {
 
 export async function getModuleTree(moduleName: string): Promise<PageNode[]> {
   try {
-    return await invoke<PageNode[]>('get_module_tree', { moduleName })
+    return await typedInvoke<PageNode[]>('get_module_tree', { moduleName })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -441,7 +449,7 @@ export async function getModuleTree(moduleName: string): Promise<PageNode[]> {
 
 export async function setPageOrder(moduleName: string, order: string[]): Promise<string> {
   try {
-    return await invoke<string>('set_page_order', { moduleName, order })
+    return await typedInvoke<string>('set_page_order', { moduleName, order })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -450,7 +458,7 @@ export async function setPageOrder(moduleName: string, order: string[]): Promise
 
 export async function setSubpageOrder(moduleName: string, parentSlug: string, order: string[]): Promise<string> {
   try {
-    return await invoke<string>('set_subpage_order', { moduleName, parentSlug, order })
+    return await typedInvoke<string>('set_subpage_order', { moduleName, parentSlug, order })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -459,7 +467,7 @@ export async function setSubpageOrder(moduleName: string, parentSlug: string, or
 
 export async function createModulePage(moduleName: string, slug: string): Promise<PageInfo> {
   try {
-    return await invoke<PageInfo>('create_module_page', { moduleName, slug })
+    return await typedInvoke<PageInfo>('create_module_page', { moduleName, slug })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -468,7 +476,7 @@ export async function createModulePage(moduleName: string, slug: string): Promis
 
 export async function deleteModulePage(moduleName: string, slug: string): Promise<string> {
   try {
-    return await invoke<string>('delete_module_page', { moduleName, slug })
+    return await typedInvoke<string>('delete_module_page', { moduleName, slug })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -477,7 +485,7 @@ export async function deleteModulePage(moduleName: string, slug: string): Promis
 
 export async function renameModulePage(moduleName: string, fromSlug: string, toSlug: string): Promise<PageInfo> {
   try {
-    return await invoke<PageInfo>('rename_module_page', { moduleName, fromSlug, toSlug })
+    return await typedInvoke<PageInfo>('rename_module_page', { moduleName, fromSlug, toSlug })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -486,7 +494,7 @@ export async function renameModulePage(moduleName: string, fromSlug: string, toS
 
 export async function createSubpage(moduleName: string, parentSlug: string, slug: string): Promise<PageInfo> {
   try {
-    return await invoke<PageInfo>('create_subpage', { moduleName, parentSlug, slug })
+    return await typedInvoke<PageInfo>('create_subpage', { moduleName, parentSlug, slug })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -495,7 +503,7 @@ export async function createSubpage(moduleName: string, parentSlug: string, slug
 
 export async function deleteSubpage(moduleName: string, parentSlug: string, slug: string): Promise<string> {
   try {
-    return await invoke<string>('delete_subpage', { moduleName, parentSlug, slug })
+    return await typedInvoke<string>('delete_subpage', { moduleName, parentSlug, slug })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -504,7 +512,7 @@ export async function deleteSubpage(moduleName: string, parentSlug: string, slug
 
 export async function renameSubpage(moduleName: string, parentSlug: string, fromSlug: string, toSlug: string): Promise<PageInfo> {
   try {
-    return await invoke<PageInfo>('rename_subpage', { moduleName, parentSlug, fromSlug, toSlug })
+    return await typedInvoke<PageInfo>('rename_subpage', { moduleName, parentSlug, fromSlug, toSlug })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -513,7 +521,7 @@ export async function renameSubpage(moduleName: string, parentSlug: string, from
 
 export async function applyCrudSubpages(moduleName: string, parentSlug: string): Promise<string[]> {
   try {
-    return await invoke<string[]>('apply_crud_subpages', { moduleName, parentSlug })
+    return await typedInvoke<string[]>('apply_crud_subpages', { moduleName, parentSlug })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -538,7 +546,7 @@ export async function listProjects(): Promise<ProjectListItem[]> {
   }
   
   try {
-    return await invoke<ProjectListItem[]>('list_projects')
+    return await typedInvoke<ProjectListItem[]>('list_projects')
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -563,7 +571,7 @@ export async function createProject(slug: string, name: string): Promise<TauriPr
   }
   
   try {
-    return await invoke<TauriProjectConfig>('create_project', { slug, name })
+    return await typedInvoke<TauriProjectConfig>('create_project', { slug, name })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -582,7 +590,7 @@ export async function deleteProject(slug: string): Promise<string> {
   }
   
   try {
-    return await invoke<string>('delete_project', { slug })
+    return await typedInvoke<string>('delete_project', { slug })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -606,7 +614,7 @@ export async function switchProject(slug: string): Promise<TauriProjectConfig> {
   }
   
   try {
-    return await invoke<TauriProjectConfig>('switch_project', { slug })
+    return await typedInvoke<TauriProjectConfig>('switch_project', { slug })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -618,7 +626,7 @@ export interface PageMetaUpdate { title?: string; status?: string; route?: strin
 
 export async function updatePageMeta(moduleName: string, slug: string, meta: PageMetaUpdate): Promise<string> {
   try {
-    return await invoke<string>('update_page_meta', { moduleName, slug, meta })
+    return await typedInvoke<string>('update_page_meta', { moduleName, slug, meta })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -627,7 +635,7 @@ export async function updatePageMeta(moduleName: string, slug: string, meta: Pag
 
 export async function updateSubpageMeta(moduleName: string, parentSlug: string, slug: string, meta: PageMetaUpdate): Promise<string> {
   try {
-    return await invoke<string>('update_subpage_meta', { moduleName, parentSlug, slug, meta })
+    return await typedInvoke<string>('update_subpage_meta', { moduleName, parentSlug, slug, meta })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -702,7 +710,7 @@ export interface SubpageExport {
 
 export async function exportSitemap(): Promise<string> {
   try {
-    return await invoke<string>('export_sitemap')
+    return await typedInvoke<string>('export_sitemap')
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -711,7 +719,7 @@ export async function exportSitemap(): Promise<string> {
 
 export async function importSitemap(filePath: string): Promise<string> {
   try {
-    return await invoke<string>('import_sitemap', { filePath })
+    return await typedInvoke<string>('import_sitemap', { filePath })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -749,7 +757,7 @@ export interface ModuleCompletion {
 
 export async function analyzeSitemap(): Promise<SitemapAnalytics> {
   try {
-    return await invoke<SitemapAnalytics>('analyze_sitemap')
+    return await typedInvoke<SitemapAnalytics>('analyze_sitemap')
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -759,7 +767,7 @@ export async function analyzeSitemap(): Promise<SitemapAnalytics> {
 // Performance optimization APIs
 export async function clearSitemapCache(): Promise<string> {
   try {
-    return await invoke<string>('clear_sitemap_cache')
+    return await typedInvoke<string>('clear_sitemap_cache')
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -768,7 +776,7 @@ export async function clearSitemapCache(): Promise<string> {
 
 export async function getCacheStats(): Promise<any> {
   try {
-    return await invoke<any>('get_cache_stats')
+    return await typedInvoke<any>('get_cache_stats')
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -777,7 +785,7 @@ export async function getCacheStats(): Promise<any> {
 
 export async function preloadModuleCache(moduleName: string): Promise<string> {
   try {
-    return await invoke<string>('preload_module_cache', { moduleName })
+    return await typedInvoke<string>('preload_module_cache', { moduleName })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -786,7 +794,7 @@ export async function preloadModuleCache(moduleName: string): Promise<string> {
 
 export async function preloadAllModulesCache(): Promise<string> {
   try {
-    return await invoke<string>('preload_all_modules_cache')
+    return await typedInvoke<string>('preload_all_modules_cache')
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
@@ -796,7 +804,7 @@ export async function preloadAllModulesCache(): Promise<string> {
 // Enhanced detailed workflow generation
 export async function generateUserWorkflowMermaidHtml(module: string): Promise<string> {
   try {
-    return await invoke<string>('generate_user_workflow_mermaid_html', { module })
+    return await typedInvoke<string>('generate_user_workflow_mermaid_html', { module })
   } catch (error) {
     const ersliceError = handleTauriError(error)
     throw new Error(getUserFriendlyMessage(ersliceError))
