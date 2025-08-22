@@ -514,51 +514,9 @@ export class SketchGenerator {
   }
 }
 
-// 暫時的佔位符類別，稍後會實現
-class ComponentRenderer {
-  constructor(private config: GeneratorConfig) {}
-  
-  async renderComponents(components: Component[]): Promise<any[]> {
-    // TODO: 實現組件渲染
-    return []
-  }
-  
-  async renderComponentsForBreakpoint(components: Component[], breakpoint: Breakpoint): Promise<any[]> {
-    // TODO: 實現響應式組件渲染
-    return []
-  }
-}
-
-class StyleManager {
-  constructor(private config: GeneratorConfig) {}
-  
-  async applyModuleStyles(artboard: any, styles: ModuleStyles): Promise<void> {
-    // TODO: 實現樣式應用
-  }
-  
-  async applyResponsiveStyles(artboard: any, styles: ModuleStyles, breakpoint: Breakpoint): Promise<void> {
-    // TODO: 實現響應式樣式
-  }
-  
-  updateTheme(_theme: Theme): void {
-    // TODO: 實現主題更新
-  }
-}
-
-class LayoutEngine {
-  constructor(private _config: GeneratorConfig) {}
-  
-  calculateLayout(_artboard: any, _layout: LayoutConfig): void {
-    // TODO: 實現佈局計算
-  }
-  
-  calculateResponsiveLayout(_artboard: any, _layout: LayoutConfig, _breakpoint: Breakpoint): void {
-    // TODO: 實現響應式佈局
-  }
-  
-  updateLayout(_layout: LayoutConfig): void {
-    // TODO: 實現佈局更新
-  }
-}
+// 導入新的核心邏輯類別
+import { ComponentRenderer } from './ComponentRenderer'
+import { StyleManager } from './StyleManager'
+import { LayoutEngine } from './LayoutEngine'
 
 export default SketchGenerator
