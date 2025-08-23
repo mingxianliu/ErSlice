@@ -1,7 +1,7 @@
 // ErSlice 數據遷移服務
 // 用於從 localStorage 遷移到 SQLite 數據庫
 
-import { invoke } from '@tauri-apps/api/tauri'
+import { typedInvoke } from '../utils/tauriCommands'
 import {
   DatabaseDesignModule,
   DatabaseTemplate,

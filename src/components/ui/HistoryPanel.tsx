@@ -7,7 +7,7 @@ import {
   ExclamationTriangleIcon,
   InformationCircleIcon,
   TrashIcon,
-  DownloadIcon,
+  ArrowDownTrayIcon,
   EyeIcon,
   FilterIcon,
   SearchIcon
@@ -164,7 +164,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({
       case 'import':
         return <FolderIcon className="h-4 w-4 text-blue-500" />
       case 'export':
-        return <DownloadIcon className="h-4 w-4 text-green-500" />
+        return <ArrowDownTrayIcon className="h-4 w-4 text-green-500" />
       case 'analysis':
         return <DocumentTextIcon className="h-4 w-4 text-purple-500" />
       case 'generation':
@@ -455,7 +455,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({
                       className="p-1 text-purple-600 hover:text-purple-800"
                       title="導出"
                     >
-                      <DownloadIcon className="h-4 w-4" />
+                      <ArrowDownTrayIcon className="h-4 w-4" />
                     </button>
                     
                     <button

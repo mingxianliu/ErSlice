@@ -1,7 +1,7 @@
 // ErSlice 數據庫服務
 // 提供與 Tauri 後端數據庫通信的函數
 
-import { invoke } from '@tauri-apps/api/tauri'
+import { typedInvoke } from '../utils/tauriCommands'
 import {
   DatabaseDesignModule,
   DatabaseTemplate,
@@ -17,7 +17,7 @@ import {
  */
 export async function initDatabase(): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('init_database')
+    const result = await typedInvoke<string>('init_database')
     return {
       success: true,
       data: result,
@@ -37,7 +37,7 @@ export async function initDatabase(): Promise<DatabaseResult<string>> {
  */
 export async function getDatabaseStats(): Promise<DatabaseResult<DatabaseStats>> {
   try {
-    const result = await invoke<DatabaseStats>('get_database_stats')
+    const result = await typedInvoke<DatabaseStats>('get_database_stats')
     return {
       success: true,
       data: result,
@@ -57,7 +57,7 @@ export async function getDatabaseStats(): Promise<DatabaseResult<DatabaseStats>>
  */
 export async function backupDatabase(): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('backup_database')
+    const result = await typedInvoke<string>('backup_database')
     return {
       success: true,
       data: result,
@@ -77,7 +77,7 @@ export async function backupDatabase(): Promise<DatabaseResult<string>> {
  */
 export async function restoreDatabase(backupPath: string): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('restore_database', { backupPath })
+    const result = await typedInvoke<string>('restore_database', { backupPath })
     return {
       success: true,
       data: result,
@@ -99,7 +99,7 @@ export async function restoreDatabase(backupPath: string): Promise<DatabaseResul
  */
 export async function getDesignModulesFromDB(): Promise<DatabaseResult<DatabaseDesignModule[]>> {
   try {
-    const result = await invoke<DatabaseDesignModule[]>('get_design_modules_from_db')
+    const result = await typedInvoke<DatabaseDesignModule[]>('get_design_modules_from_db')
     return {
       success: true,
       data: result,
@@ -119,7 +119,7 @@ export async function getDesignModulesFromDB(): Promise<DatabaseResult<DatabaseD
  */
 export async function getDesignModulesByStatusFromDB(status: string): Promise<DatabaseResult<DatabaseDesignModule[]>> {
   try {
-    const result = await invoke<DatabaseDesignModule[]>('get_design_modules_by_status_from_db', { status })
+    const result = await typedInvoke<DatabaseDesignModule[]>('get_design_modules_by_status_from_db', { status })
     return {
       success: true,
       data: result,
@@ -139,7 +139,7 @@ export async function getDesignModulesByStatusFromDB(status: string): Promise<Da
  */
 export async function createDesignModuleInDB(module: DatabaseDesignModule): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('create_design_module_in_db', { module })
+    const result = await typedInvoke<string>('create_design_module_in_db', { module })
     return {
       success: true,
       data: result,
@@ -159,7 +159,7 @@ export async function createDesignModuleInDB(module: DatabaseDesignModule): Prom
  */
 export async function updateDesignModuleInDB(module: DatabaseDesignModule): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('update_design_module_in_db', { module })
+    const result = await typedInvoke<string>('update_design_module_in_db', { module })
     return {
       success: true,
       data: result,
@@ -179,7 +179,7 @@ export async function updateDesignModuleInDB(module: DatabaseDesignModule): Prom
  */
 export async function deleteDesignModuleFromDB(id: string): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('delete_design_module_from_db', { id })
+    const result = await typedInvoke<string>('delete_design_module_from_db', { id })
     return {
       success: true,
       data: result,
@@ -201,7 +201,7 @@ export async function deleteDesignModuleFromDB(id: string): Promise<DatabaseResu
  */
 export async function getTemplatesFromDB(): Promise<DatabaseResult<DatabaseTemplate[]>> {
   try {
-    const result = await invoke<DatabaseTemplate[]>('get_templates_from_db')
+    const result = await typedInvoke<DatabaseTemplate[]>('get_templates_from_db')
     return {
       success: true,
       data: result,
@@ -221,7 +221,7 @@ export async function getTemplatesFromDB(): Promise<DatabaseResult<DatabaseTempl
  */
 export async function createTemplateInDB(template: DatabaseTemplate): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('create_template_in_db', { template })
+    const result = await typedInvoke<string>('create_template_in_db', { template })
     return {
       success: true,
       data: result,
@@ -241,7 +241,7 @@ export async function createTemplateInDB(template: DatabaseTemplate): Promise<Da
  */
 export async function updateTemplateInDB(template: DatabaseTemplate): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('update_template_in_db', { template })
+    const result = await typedInvoke<string>('update_template_in_db', { template })
     return {
       success: true,
       data: result,
@@ -261,7 +261,7 @@ export async function updateTemplateInDB(template: DatabaseTemplate): Promise<Da
  */
 export async function deleteTemplateFromDB(id: string): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('delete_template_from_db', { id })
+    const result = await typedInvoke<string>('delete_template_from_db', { id })
     return {
       success: true,
       data: result,
@@ -283,7 +283,7 @@ export async function deleteTemplateFromDB(id: string): Promise<DatabaseResult<s
  */
 export async function getAISpecsFromDB(): Promise<DatabaseResult<DatabaseAISpec[]>> {
   try {
-    const result = await invoke<DatabaseAISpec[]>('get_ai_specs_from_db')
+    const result = await typedInvoke<DatabaseAISpec[]>('get_ai_specs_from_db')
     return {
       success: true,
       data: result,
@@ -303,7 +303,7 @@ export async function getAISpecsFromDB(): Promise<DatabaseResult<DatabaseAISpec[
  */
 export async function createAISpecInDB(spec: DatabaseAISpec): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('create_ai_spec_in_db', { spec })
+    const result = await typedInvoke<string>('create_ai_spec_in_db', { spec })
     return {
       success: true,
       data: result,
@@ -323,7 +323,7 @@ export async function createAISpecInDB(spec: DatabaseAISpec): Promise<DatabaseRe
  */
 export async function updateAISpecInDB(spec: DatabaseAISpec): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('update_ai_spec_in_db', { spec })
+    const result = await typedInvoke<string>('update_ai_spec_in_db', { spec })
     return {
       success: true,
       data: result,
@@ -343,7 +343,7 @@ export async function updateAISpecInDB(spec: DatabaseAISpec): Promise<DatabaseRe
  */
 export async function deleteAISpecFromDB(id: string): Promise<DatabaseResult<string>> {
   try {
-    const result = await invoke<string>('delete_ai_spec_from_db', { id })
+    const result = await typedInvoke<string>('delete_ai_spec_from_db', { id })
     return {
       success: true,
       data: result,

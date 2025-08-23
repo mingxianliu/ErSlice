@@ -6,17 +6,8 @@
 import { FigmaAnalysisController, ComprehensiveAnalysisResult } from './figmaAnalysisController'
 import { FigmaFileProcessor, FigmaImportResult } from './figmaFileProcessor'
 import { FigmaAssetParser, ParsedAssetInfo } from './figmaParser'
-// 動態導入 Tauri API 以支援瀏覽器環境
-let invoke: any = null
-
-try {
-  // 嘗試導入 Tauri API
-  import('@tauri-apps/api/tauri').then(({ invoke: tauriInvoke }) => {
-    invoke = tauriInvoke
-  })
-} catch (error) {
-  console.log('Tauri API 不可用，運行在瀏覽器環境')
-}
+// 使用統一的 Tauri 導入處理
+import { typedInvoke } from '../utils/tauriCommands'
 
 export interface FolderStructure {
   name: string
@@ -493,8 +484,8 @@ export class FigmaImportWorkflow {
    */
   private async saveDesignModuleToDatabase(module: DesignModuleTemplate): Promise<void> {
     try {
-      if (invoke) {
-        await invoke('create_design_module_in_db', {
+      if (typedInvoke) {
+        await typedInvoke('create_design_module_in_db', {
           module: {
             id: module.id,
             name: module.name,

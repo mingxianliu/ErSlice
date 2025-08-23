@@ -15,7 +15,7 @@ try {
 }
 
 // 類型安全的 invoke 包裝函數
-function typedInvoke<T>(command: string, args?: any): Promise<T> {
+export function typedInvoke<T>(command: string, args?: any): Promise<T> {
   if (!invoke) {
     throw new Error('Tauri API 不可用')
   }

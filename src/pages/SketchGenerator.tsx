@@ -8,7 +8,7 @@ import {
   DocumentTextIcon, 
   CogIcon,
   PlayIcon,
-  DownloadIcon,
+  ArrowDownTrayIcon,
   EyeIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon
@@ -421,7 +421,7 @@ const SketchGeneratorPage: React.FC = () => {
                   variant="success"
                   size="lg"
                 >
-                  <DownloadIcon className="h-5 w-5 mr-2" />
+                  <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
                   下載 Sketch 檔案
                 </Button>
               )}
@@ -484,7 +484,7 @@ const SketchGeneratorPage: React.FC = () => {
                 variant="success"
                 size="md"
               >
-                <DownloadIcon className="h-5 w-5 mr-2" />
+                <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
                 下載 Sketch 檔案
               </Button>
             </div>
@@ -524,7 +524,7 @@ const SketchGeneratorPage: React.FC = () => {
             
             <div className="text-center">
               <div className="bg-purple-100 dark:bg-purple-900/20 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
-                <DownloadIcon className="h-6 w-6 text-purple-600" />
+                <ArrowDownTrayIcon className="h-6 w-6 text-purple-600" />
               </div>
               <h3 className="font-medium text-gray-900 dark:text-white mb-2">
                 即時下載
