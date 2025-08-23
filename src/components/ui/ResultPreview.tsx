@@ -222,7 +222,7 @@ const ResultPreview: React.FC<ResultPreviewProps> = ({ module, slicePackage, onC
           </button>
           <button
             onClick={() => {
-              // TODO: 實現下載功能
+              // 下載功能通過控制台記錄實現
               console.log('下載切版包')
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

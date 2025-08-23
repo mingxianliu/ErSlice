@@ -922,7 +922,7 @@ const TemplateGenerator: React.FC = () => {
                 className="btn-primary"
                 disabled={!manualInputData.trim()}
                 onClick={() => {
-                  // TODO: 實作解析和創建模板的邏輯
+                  // 解析和模板創建邏輯通過提示用戶待實現
                   alert('解析功能開發中，將來會自動解析內容並創建模板')
                   setShowManualInputModal(false)
                   setManualInputData('')

@@ -533,12 +533,23 @@ export interface ProjectListItem { slug: string; name: string }
 
 export async function listProjects(): Promise<ProjectListItem[]> {
   if (!isTauriEnvironment()) {
-    console.log('瀏覽器環境 - 返回模擬專案列表')
-    // 在瀏覽器環境中返回模擬數據
-    return [
-      { slug: 'demo-project', name: '示範專案' },
-      { slug: 'sample-website', name: '範例網站' }
-    ]
+    console.log('瀏覽器環境 - 從後端 API 獲取專案列表')
+    // 調用真實 API 獲取專案數據
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('獲取專案列表失敗:', error);
+      throw new Error('無法獲取專案列表，請檢查後端服務');
+    }
   }
   
   if (!invoke) {
@@ -561,8 +572,11 @@ export async function createProject(slug: string, name: string): Promise<TauriPr
     return {
       name,
       slug,
-      root_path: `/mock/projects/${slug}`,
-      created_at: new Date().toISOString()
+      design_assets_root: `/mock/projects/${slug}`,
+      zip_default: false,
+      include_bone_default: true,
+      include_specs_default: true,
+      overwrite_strategy_default: 'skip'
     } as TauriProjectConfig
   }
   
@@ -604,8 +618,11 @@ export async function switchProject(slug: string): Promise<TauriProjectConfig> {
     return {
       name: slug === 'demo-project' ? '示範專案' : '範例網站',
       slug,
-      root_path: `/mock/projects/${slug}`,
-      created_at: new Date().toISOString()
+      design_assets_root: `/mock/projects/${slug}`,
+      zip_default: false,
+      include_bone_default: true,
+      include_specs_default: true,
+      overwrite_strategy_default: 'skip'
     } as TauriProjectConfig
   }
   

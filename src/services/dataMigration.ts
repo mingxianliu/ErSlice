@@ -40,6 +40,29 @@ export interface ValidationResult {
   valid: boolean
   errors: ValidationError[]
   warnings: ValidationWarning[]
+  modules?: {
+    valid: DesignModule[]
+    invalid: { module: DesignModule; errors: ValidationError[] }[]
+  }
+  templates?: {
+    valid: Template[]
+    invalid: { template: Template; errors: ValidationError[] }[]
+  }
+  specs?: {
+    valid: AISpec[]
+    invalid: { spec: AISpec; errors: ValidationError[] }[]
+  }
+  summary?: {
+    total: number
+    totalModules: number
+    totalTemplates: number
+    totalSpecs: number
+    valid: number
+    validCount: number
+    invalid: number
+    invalidCount: number
+    criticalErrors: number
+  }
 }
 
 export interface ValidationError {

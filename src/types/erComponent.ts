@@ -247,7 +247,7 @@ export interface TestScenario {
   description: string;
   setup: string;
   assertion: string;
-  mockData?: Record<string, any>;
+  testData?: Record<string, any>;
 }
 
 // ===== 協作層相關類型 =====

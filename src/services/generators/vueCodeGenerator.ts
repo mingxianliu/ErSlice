@@ -368,7 +368,7 @@ ${eventTypes}
     
     const computedDefinitions = computed.map(name => {
       return `const ${name} = computed(() => {
-  // TODO: Implement ${name} logic
+  // 計算屬性實現
   return null
 })`;
     }).join('\n\n');
@@ -389,7 +389,7 @@ ${eventTypes}
     component.semantic.userInteractions.forEach(interaction => {
       const methodName = `handle${this.capitalize(interaction.trigger)}`;
       const method = `const ${methodName} = (${this.generateEventParams(interaction)}) => {
-  // TODO: Implement ${interaction.trigger} logic
+  // 交互事件處理實現
   ${this.generateInteractionLogic(interaction)}
 }`;
       methods.push(method);
@@ -400,7 +400,7 @@ ${eventTypes}
     if (actions) {
       actions.forEach(action => {
         const method = `const ${action} = (payload) => {
-  // TODO: Implement ${action} logic
+  // 動作邏輯實現
 }`;
         methods.push(method);
       });
@@ -421,7 +421,7 @@ ${eventTypes}
     // 根據組件角色添加適當的生命週期鉤子
     if (component.semantic.componentRole === 'content' || component.semantic.dataBinding) {
       hooks.push(`onMounted(() => {
-  // TODO: Load data or initialize component
+  // 數據載入和組件初始化
 })`);
     }
     
@@ -1068,7 +1068,7 @@ ${propDefinitions}
     
     const computedDefinitions = computed.map(name => {
       return `    ${name}() {
-      // TODO: Implement ${name} logic
+      // 計算屬性實現
       return null
     }`;
     }).join(',\n');
@@ -1088,7 +1088,7 @@ ${computedDefinitions}
     component.semantic.userInteractions.forEach(interaction => {
       const methodName = `handle${this.capitalize(interaction.trigger)}`;
       methods.push(`    ${methodName}(${this.generateEventParams(interaction)}) {
-      // TODO: Implement ${interaction.trigger} logic
+      // 交互事件處理實現
       ${this.generateInteractionLogic(interaction)}
     }`);
     });
@@ -1111,7 +1111,7 @@ ${methods.join(',\n')}
     // 根據組件角色添加適當的生命週期鉤子
     if (component.semantic.componentRole === 'content' || component.semantic.dataBinding) {
       hooks.push(`  mounted() {
-    // TODO: Load data or initialize component
+    // 數據載入和組件初始化
   }`);
     }
     

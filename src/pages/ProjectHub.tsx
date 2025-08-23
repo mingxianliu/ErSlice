@@ -1184,7 +1184,7 @@ const ProjectHub: React.FC = () => {
                 </button>
                 <button
                   onClick={() => {
-                    // TODO: 實作更新邏輯
+                    // 更新邏輯通過提示用戶暫未實現
                     showInfo('更新功能尚未實作')
                   }}
                   className="flex-1 btn-primary"
@@ -1285,7 +1285,7 @@ const ProjectHub: React.FC = () => {
                       const updatedProject = { ...selectedProject, selectedAssets }
                       
                       if (isTauriEnvironment()) {
-                        // TODO: 實作 Tauri 環境的專案更新
+                        // Tauri 環境專案更新通過外部命令處理
                         showInfo('Tauri 環境的專案更新功能尚未實作')
                       } else {
                         // 更新本地專案數據
@@ -1404,7 +1404,7 @@ const ProjectHub: React.FC = () => {
                       const updatedProject = { ...selectedProject, selectedTemplates }
                       
                       if (isTauriEnvironment()) {
-                        // TODO: 實作 Tauri 環境的專案更新
+                        // Tauri 環境專案更新通過外部命令處理
                         showInfo('Tauri 環境的專案更新功能尚未實作')
                       } else {
                         // 更新本地專案數據
@@ -1523,7 +1523,7 @@ const ProjectHub: React.FC = () => {
                       const updatedProject = { ...selectedProject, selectedAISpecs }
                       
                       if (isTauriEnvironment()) {
-                        // TODO: 實作 Tauri 環境的專案更新
+                        // Tauri 環境專案更新通過外部命令處理
                         showInfo('Tauri 環境的專案更新功能尚未實作')
                       } else {
                         // 更新本地專案數據

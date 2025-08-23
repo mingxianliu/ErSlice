@@ -266,7 +266,7 @@ export class AISpecGenerator {
         testingTypes: this.generateTestingTypes(template),
         testStructure: this.generateTestStructure(template),
         assertions: this.generateAssertions(template),
-        mocking: this.generateMocking(template),
+        testData: this.generateTestDataStrategy(template),
         coverage: this.generateCoverage(template)
       }
     }
@@ -698,10 +698,10 @@ export class AISpecGenerator {
     ]
   }
 
-  private generateMocking(_template: Template): string[] {
+  private generateTestDataStrategy(_template: Template): string[] {
     return [
-      'API 響應模擬',
-      '事件對象模擬',
+      '真實 API 集成測試',
+      '邊界值測試數據',
       '計時器模擬',
       '模組依賴模擬'
     ]

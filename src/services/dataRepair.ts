@@ -16,6 +16,7 @@ export interface RepairResult {
   success: boolean
   repaired: number
   failed: number
+  processed: number
   details: {
     modules: RepairDetail[]
     templates: RepairDetail[]
@@ -27,6 +28,7 @@ export interface RepairResult {
 export interface RepairDetail {
   id: string
   name: string
+  title: string
   type: 'module' | 'template' | 'spec'
   original: any
   repaired: any

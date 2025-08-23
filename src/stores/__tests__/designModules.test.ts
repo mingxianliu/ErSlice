@@ -10,7 +10,7 @@ function makeState(partial: Partial<Record<string, unknown>> = {}, modules: Desi
     error: null,
     tauriAvailable: null,
     query: '',
-    status: 'all',
+    status: 'all' as const,
     sortBy: 'name',
     sortDir: 'asc',
     page: 1,

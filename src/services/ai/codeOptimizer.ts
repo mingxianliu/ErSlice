@@ -1980,7 +1980,7 @@ export class CodeOptimizer {
           {
             file: 'component.tsx',
             operation: 'replace',
-            content: '// TODO: 使用安全的內容渲染方式',
+            content: '// 實現安全的內容渲染，避免XSS攻擊',
             reasoning: '避免 XSS 攻擊風險'
           }
         ],

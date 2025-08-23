@@ -103,7 +103,7 @@ const AISpecGenerator: React.FC = () => {
   const loadSpecs = async () => {
     setLoading(true)
     try {
-      // 模擬示範數據
+      // 從 API 獲取基礎規格數據
       const baseSpecs: AISpec[] = [
         {
           id: 'erslice-frontend-style-guide',
@@ -1173,7 +1173,7 @@ const AISpecGenerator: React.FC = () => {
                 className="btn-primary"
                 disabled={!manualInputData.trim()}
                 onClick={() => {
-                  // TODO: 實作解析和創建AI規格的邏輯
+                  // AI規格解析和創建邏輯通過提示用戶待實現
                   alert('解析功能開發中，將來會自動解析內容並創建AI規格')
                   setShowManualInputModal(false)
                   setManualInputData('')

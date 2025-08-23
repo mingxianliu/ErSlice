@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   CheckCircleIcon, 
   ExclamationTriangleIcon, 
@@ -15,9 +15,6 @@ import {
   MigrationResult,
   ValidationResult
 } from '../services/dataMigration'
-import { DesignModule } from '../stores/designModules'
-import { Template } from '../types/templates'
-import { AISpec } from '../types/aiSpec'
 
 interface DataMigrationModalProps {
   isOpen: boolean
@@ -26,7 +23,7 @@ interface DataMigrationModalProps {
 
 export default function DataMigrationModal({ isOpen, onClose }: DataMigrationModalProps) {
   const [step, setStep] = useState<'check' | 'validate' | 'migrate' | 'complete'>('check')
-  const [migrationNeeded, setMigrationNeeded] = useState(false)
+  const [, setMigrationNeeded] = useState(false)
   const [localDataCount, setLocalDataCount] = useState({ modules: 0, templates: 0, specs: 0 })
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
   const [migrationStatus, setMigrationStatus] = useState<MigrationStatus | null>(null)
@@ -64,9 +61,32 @@ export default function DataMigrationModal({ isOpen, onClose }: DataMigrationMod
         modules: localModules,
         templates: localTemplates,
         specs: localSpecs
-      })
+      }) as any
       
-      setValidationResult(validation)
+      // 確保驗證結果包含所有必需字段
+      const completeValidation: ValidationResult = {
+        valid: validation?.valid || false,
+        errors: validation?.errors || [],
+        warnings: validation?.warnings || [],
+        modules: validation?.modules,
+        templates: validation?.templates,
+        specs: validation?.specs,
+        summary: {
+          total: (validation?.modules?.valid?.length || 0) + (validation?.modules?.invalid?.length || 0) + 
+                 (validation?.templates?.valid?.length || 0) + (validation?.templates?.invalid?.length || 0) +
+                 (validation?.specs?.valid?.length || 0) + (validation?.specs?.invalid?.length || 0),
+          totalModules: (validation?.modules?.valid?.length || 0) + (validation?.modules?.invalid?.length || 0),
+          totalTemplates: (validation?.templates?.valid?.length || 0) + (validation?.templates?.invalid?.length || 0),
+          totalSpecs: (validation?.specs?.valid?.length || 0) + (validation?.specs?.invalid?.length || 0),
+          valid: (validation?.modules?.valid?.length || 0) + (validation?.templates?.valid?.length || 0) + (validation?.specs?.valid?.length || 0),
+          validCount: (validation?.modules?.valid?.length || 0) + (validation?.templates?.valid?.length || 0) + (validation?.specs?.valid?.length || 0),
+          invalid: (validation?.modules?.invalid?.length || 0) + (validation?.templates?.invalid?.length || 0) + (validation?.specs?.invalid?.length || 0),
+          invalidCount: (validation?.modules?.invalid?.length || 0) + (validation?.templates?.invalid?.length || 0) + (validation?.specs?.invalid?.length || 0),
+          criticalErrors: validation?.errors?.filter((e: any) => e.severity === 'critical')?.length || 0
+        }
+      }
+      
+      setValidationResult(completeValidation)
       setStep('migrate')
     } catch (err) {
       setError('數據驗證失敗: ' + (err instanceof Error ? err.message : '未知錯誤'))
@@ -197,25 +217,25 @@ export default function DataMigrationModal({ isOpen, onClose }: DataMigrationMod
                   <div className="grid grid-cols-4 gap-4 text-center">
                     <div>
                       <div className="text-lg font-semibold text-gray-900">
-                        {validationResult.summary.total}
+                        {validationResult.summary?.total || 0}
                       </div>
                       <div className="text-sm text-gray-600">總數</div>
                     </div>
                     <div>
                       <div className="text-lg font-semibold text-green-600">
-                        {validationResult.summary.valid}
+                        {validationResult.summary?.valid || 0}
                       </div>
                       <div className="text-sm text-gray-600">有效</div>
                     </div>
                     <div>
                       <div className="text-lg font-semibold text-red-600">
-                        {validationResult.summary.invalid}
+                        {validationResult.summary?.invalid || 0}
                       </div>
                       <div className="text-sm text-gray-600">無效</div>
                     </div>
                     <div>
                       <div className="text-lg font-semibold text-orange-600">
-                        {validationResult.summary.criticalErrors}
+                        {validationResult.summary?.criticalErrors || 0}
                       </div>
                       <div className="text-sm text-gray-600">嚴重錯誤</div>
                     </div>
@@ -223,37 +243,37 @@ export default function DataMigrationModal({ isOpen, onClose }: DataMigrationMod
                 </div>
 
                 {/* 詳細驗證結果 */}
-                {validationResult.summary.invalid > 0 && (
+                {(validationResult.summary?.invalid || 0) > 0 && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                     <h4 className="font-medium text-red-800 mb-2">發現驗證問題</h4>
                     <div className="space-y-2 text-sm text-red-700">
-                      {validationResult.modules.invalid.length > 0 && (
+                      {(validationResult.modules?.invalid?.length || 0) > 0 && (
                         <div>
-                          <strong>設計模組:</strong> {validationResult.modules.invalid.length} 個問題
+                          <strong>設計模組:</strong> {validationResult.modules?.invalid?.length || 0} 個問題
                         </div>
                       )}
-                      {validationResult.templates.invalid.length > 0 && (
+                      {(validationResult.templates?.invalid?.length || 0) > 0 && (
                         <div>
-                          <strong>模板:</strong> {validationResult.templates.invalid.length} 個問題
+                          <strong>模板:</strong> {validationResult.templates?.invalid?.length || 0} 個問題
                         </div>
                       )}
-                      {validationResult.specs.invalid.length > 0 && (
+                      {(validationResult.specs?.invalid?.length || 0) > 0 && (
                         <div>
-                          <strong>AI 規格:</strong> {validationResult.specs.invalid.length} 個問題
+                          <strong>AI 規格:</strong> {validationResult.specs?.invalid?.length || 0} 個問題
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                {validationResult.summary.criticalErrors > 0 && (
+                {(validationResult.summary?.criticalErrors || 0) > 0 && (
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
                     <div className="flex items-start">
                       <ExclamationTriangleIcon className="h-5 w-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" />
                       <div className="text-sm text-orange-800">
                         <p className="font-medium">嚴重錯誤警告</p>
                         <p className="mt-1">
-                          發現 {validationResult.summary.criticalErrors} 個嚴重錯誤，這些數據將無法遷移。
+                          發現 {validationResult.summary?.criticalErrors || 0} 個嚴重錯誤，這些數據將無法遷移。
                           建議先修復這些問題再進行遷移。
                         </p>
                       </div>

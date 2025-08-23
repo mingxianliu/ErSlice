@@ -6,6 +6,9 @@ import {
   checkTauriAvailable,
 } from '../utils/tauriCommands'
 
+// Re-export DesignModule type for external use
+export type { DesignModule } from '../utils/tauriCommands'
+
 type StatusFilter = 'all' | 'active' | 'draft' | 'archived'
 type SortBy = 'name' | 'assets' | 'updated'
 type SortDir = 'asc' | 'desc'

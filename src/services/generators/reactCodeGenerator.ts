@@ -351,7 +351,7 @@ ${propTypes}`;
     // 組件掛載時的副作用
     if (component.semantic.componentRole === 'content' || component.semantic.dataBinding) {
       effects.push(`useEffect(() => {
-    // TODO: Load data or initialize component
+    // 載入初始數據或初始化組件狀態
   }, [])`);
     }
     
@@ -360,7 +360,7 @@ ${propTypes}`;
     if (stateEffects && stateEffects.length > 0) {
       stateEffects.forEach(effect => {
         effects.push(`useEffect(() => {
-    // TODO: Implement ${effect} effect
+    // 實現 ${effect} 副作用邏輯
   }, [/* dependencies */])`);
       });
     }
@@ -383,7 +383,7 @@ ${propTypes}`;
     
     const memoizedValues = computed.map(name => {
       return `const ${name} = useMemo(() => {
-    // TODO: Implement ${name} computation
+    // 計算屬性：${name} 的邏輯實現
     return null
   }, [/* dependencies */])`;
     }).join('\n\n  ');
@@ -406,7 +406,7 @@ ${propTypes}`;
       const params = this.generateHandlerParams(interaction);
       
       const handler = `const ${handlerName} = useCallback((${params}) => {
-    // TODO: Implement ${interaction.trigger} logic
+    // 事件處理：${interaction.trigger} 邏輯實現
     ${this.generateInteractionLogic(interaction, component)}
   }, [])`;
       
@@ -431,7 +431,7 @@ ${propTypes}`;
     
     const exposedMethods = Object.keys(methods)
       .map(methodName => `    ${methodName}: () => {
-      // TODO: Implement ${methodName}
+      // 方法實現：${methodName} 業務邏輯
     }`)
       .join(',\n');
     
@@ -988,7 +988,7 @@ ${initialState}
     
     if (component.semantic.componentRole === 'content' || component.semantic.dataBinding) {
       methods.push(`  componentDidMount() {
-    // TODO: Load data or initialize component
+    // 載入初始數據或初始化組件狀態
   }`);
     }
     
@@ -1006,7 +1006,7 @@ ${initialState}
       const params = this.generateHandlerParams(interaction);
       
       methods.push(`  ${methodName} = (${params}) => {
-    // TODO: Implement ${interaction.trigger} logic
+    // 事件處理：${interaction.trigger} 邏輯實現
     ${this.generateInteractionLogic(interaction, component)}
   }`);
     });

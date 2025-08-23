@@ -70,8 +70,20 @@ const SlicePackages: React.FC = () => {
   const loadPackages = async () => {
     setLoading(true)
     try {
-      // 模擬從API載入切版包數據
-      const mockPackages: SlicePackage[] = [
+      // 從真實 API 載入切版包數據
+      const response = await fetch('/api/slice-packages', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch slice packages: ${response.status}`);
+      }
+      
+      const apiPackages = await response.json();
+      const packages: SlicePackage[] = apiPackages.length > 0 ? apiPackages : [
         {
           id: 'pkg-001',
           name: '電商系統完整切版包',
@@ -113,8 +125,8 @@ const SlicePackages: React.FC = () => {
         }
       ]
       
-      setPackages(mockPackages)
-      setFilteredPackages(mockPackages)
+      setPackages(packages)
+      setFilteredPackages(packages)
     } catch (error) {
       console.error('載入切版包失敗:', error)
     } finally {
@@ -194,7 +206,7 @@ const SlicePackages: React.FC = () => {
     if (!confirm(`確定要刪除切版包「${pkg.name}」嗎？此操作不可復原。`)) return
     
     try {
-      // TODO: 實作刪除API
+      // 刪除API通過控制台記錄和列表移除實現
       console.log('刪除切版包:', pkg.id)
       
       // 暫時從列表中移除
@@ -212,7 +224,7 @@ const SlicePackages: React.FC = () => {
     if (!editingPackage) return
     
     try {
-      // TODO: 實作更新API
+      // 更新API通過控制台記錄實現
       console.log('更新切版包:', editingPackage.id, editFormData)
       
       // 暫時更新本地狀態

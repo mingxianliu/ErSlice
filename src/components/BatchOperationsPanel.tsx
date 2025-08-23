@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   CogIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
   XCircleIcon,
   InformationCircleIcon,
   ArrowPathIcon,
@@ -12,9 +11,7 @@ import {
 import { Button } from './ui/Button'
 import { 
   getAvailableBatchOperations,
-  executeBatchOperation,
   executeBatchOperations,
-  isOperationSupported,
   getOperationSuggestions,
   previewBatchOperation,
   BatchOperation,
@@ -226,7 +223,7 @@ export default function BatchOperationsPanel({ data, onOperationComplete, classN
     return (
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
         <h4 className="font-medium text-blue-900 mb-3">
-          操作預覽: {operation.name}
+          操作預覽: {operation?.name || '未知操作'}
         </h4>
         
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -245,7 +242,7 @@ export default function BatchOperationsPanel({ data, onOperationComplete, classN
             <div className="text-sm text-yellow-800">
               <strong>警告:</strong>
               <ul className="mt-1 space-y-1">
-                {preview.warnings.map((warning, index) => (
+                {preview.warnings.map((warning: string, index: number) => (
                   <li key={index}>• {warning}</li>
                 ))}
               </ul>
@@ -258,7 +255,7 @@ export default function BatchOperationsPanel({ data, onOperationComplete, classN
             <div className="text-sm text-red-800">
               <strong>錯誤:</strong>
               <ul className="mt-1 space-y-1">
-                {preview.errors.map((error, index) => (
+                {preview.errors.map((error: string, index: number) => (
                   <li key={index}>• {error}</li>
                 ))}
               </ul>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { 
   CheckCircleIcon, 
   ExclamationTriangleIcon, 
@@ -13,9 +13,6 @@ import {
   ValidationError,
   ValidationWarning
 } from '../services/dataMigration'
-import { DesignModule } from '../stores/designModules'
-import { Template } from '../types/templates'
-import { AISpec } from '../types/aiSpec'
 
 interface DataValidationPanelProps {
   onValidationComplete?: (result: ValidationResult) => void

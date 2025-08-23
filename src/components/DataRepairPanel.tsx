@@ -3,7 +3,6 @@ import {
   WrenchScrewdriverIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  XCircleIcon,
   InformationCircleIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline'
@@ -14,7 +13,6 @@ import {
   needsRepair,
   getRepairSuggestions,
   RepairResult,
-  RepairDetail,
   RepairRule
 } from '../services/dataRepair'
 import { DesignModule } from '../utils/tauriCommands'
